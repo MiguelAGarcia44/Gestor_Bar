@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Aquí llamamos a tu archivo de estilos -->
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+
+    <h1>🍻 Bar Oveja Negra</h1>
+
+    <div style="text-align: center; margin-bottom: 20px;">
+      <button class="btn-agregar" style="width: auto; padding: 10px 20px; background-color: #8e44ad; margin-right: 10px;" onclick="abrirModalProducto()">
+        ➕ Agregar Nuevo
+      </button>
+      <button class="btn-agregar" style="width: auto; padding: 10px 20px; background-color: #f39c12;" onclick="abrirModalModificar()">
+        ✏️ Modificar Producto
+      </button>
+    </div>
+
+    <div class="mesas-container">
+      <div class="mesa" data-mesa="1" onclick="abrirModal(this)"><span>Mesa 1</span><div class="estado">Libre</div></div>
+      <div class="mesa" data-mesa="2" onclick="abrirModal(this)"><span>Mesa 2</span><div class="estado">Libre</div></div>
+      <div class="mesa" data-mesa="3" onclick="abrirModal(this)"><span>Mesa 3</span><div class="estado">Libre</div></div>
+      <div class="mesa" data-mesa="4" onclick="abrirModal(this)"><span>Mesa 4</span><div class="estado">Libre</div></div>
+      <div class="mesa" data-mesa="5" onclick="abrirModal(this)"><span>Mesa 5</span><div class="estado">Libre</div></div>
+    </div>
+
+    <!-- El Modal -->
+    <div class="modal-overlay" id="modalPedido">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="tituloModal">Mesa X</h2>
+          <button class="btn-cerrar" onclick="cerrarModal()">&times;</button>
+        </div>
+        
+        <p>Seleccionar consumo y cantidad:</p>
+        <!-- Flexbox para poner el selector y la cantidad juntos -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <select class="input-pedido" id="selectProducto" style="margin-bottom: 0; flex-grow: 1;">
+            <option value="">Cargando productos...</option>
+          </select>
+       <!-- <input type="number" class="input-pedido" id="inputCantidad" value="1" min="1" style="margin-bottom: 0; width: 80px;" title="Cantidad">  -->
+        </div>
+        
+        <button class="btn-agregar" onclick="agregarProducto()">Agregar a la cuenta</button>
+
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+          <h4>Cuenta actual:</h4>
+          <ul id="listaCuenta">
+            <li style="color: #7f8c8d; font-style: italic;">Sin productos aún</li>
+          </ul>
+          <!-- Agregamos un totalizador -->
+          <h3 style="text-align: right; color: #2c3e50;">Total: $<span id="totalCuenta">0.00</span></h3>          
+          <!-- NUEVO BOTÓN DE PAGADO -->
+          <button class="btn-pagar" id="btnPagar" onclick="pagarCuenta()">💳 Cobrar y Liberar Mesa</button>
+        </div>
+        </div>
+
+
+      </div>
+    </div>
+
+    <!-- Agregar Producto -->
+    <div class="modal-overlay" id="modalNuevoProducto">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Nuevo Producto</h2>
+          <button class="btn-cerrar" onclick="cerrarModalProducto()">&times;</button>
+        </div>
+        
+        <p>Nombre del producto:</p>
+        <input type="text" class="input-pedido" id="nuevoNombre" placeholder="Ej. Tequila Don Julio">
+        
+        <p>Costo ($):</p>
+        <input type="number" class="input-pedido" id="nuevoCosto" placeholder="Ej. 120">
+        
+        <button class="btn-pagar" onclick="guardarProducto()">💾 Guardar en Inventario</button>
+      </div>
+    </div>
+
+    <!-- Modificar Producto -->
+    <div class="modal-overlay" id="modalModificarProducto">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Modificar Producto</h2>
+          <button class="btn-cerrar" onclick="cerrarModalModificar()">&times;</button>
+        </div>
+        
+        <p>Selecciona el producto a modificar:</p>
+        <select class="input-pedido" id="selectModificar" onchange="cargarDatosModificar()">
+          <option value="">Cargando productos...</option>
+        </select>
+        
+        <p>Nombre del producto:</p>
+        <input type="text" class="input-pedido" id="modificarNombre">
+        
+        <p>Costo ($):</p>
+        <input type="number" class="input-pedido" id="modificarCosto">
+        
+        <button class="btn-pagar" style="background-color: #f39c12;" onclick="guardarModificacion()">💾 Actualizar Producto</button>
+      </div>
+    </div>
+
+    <!-- Aquí llamamos a tu archivo de JavaScript -->
+    <script src="app.js"></script>    
+  </body>
+</html>
