@@ -1,338 +1,379 @@
-  let mesaActual = null;
-  let listaProductosGlobal = []; // NUEVA VARIABLE
-  // Este objeto guardará temporalmente los pedidos de cada mesa mientras la app esté abierta
-  let cuentasMesas = { '1': [], '2': [], '3': [], '4': [], '5': [] };
+import { supabase } from './conexion.js';
 
-  // 1. Cuando la página termine de cargar, le pedimos los productos a Apps Script
-  document.addEventListener('DOMContentLoaded', function() {
-    google.script.run
-      .withSuccessHandler(llenarDesplegable) // Si funciona, ejecuta esta función
-      .withFailureHandler(function(error) { alert("Error al cargar productos: " + error); })
-      .obtenerProductos();
-  });
+let negocioIdActual = null;
+let usuarioId = null;
+let rolUsuario = null;
+let listaProductosGlobal = []; 
+let mesaActualId = null; 
+let cuentaActivaId = null; 
 
-  // 2. Función que recibe los productos y llena el <select>
-  function llenarDesplegable(productos) {
-    listaProductosGlobal = productos; // <-- AGREGA ESTA LÍNEA
+// --- 1. INICIALIZACIÓN ---
+async function inicializarTerminal() {
+    const usuario = window.usuarioActual;
+    negocioIdActual = usuario.negocio_id;
+    usuarioId = usuario.id;
+    rolUsuario = usuario.rol;
+
+    // 1. Estandarizamos el identificador visual AQUÍ ADENTRO (seguro)
+    const rolFormateado = rolUsuario.charAt(0).toUpperCase() + rolUsuario.slice(1);
+    const identificadorElement = document.getElementById('identificadorUsuario');
+    if (identificadorElement) {
+        identificadorElement.textContent = `${usuario.nombre_completo} (${rolFormateado})`;
+    }
+
+    // 2. Cargar nombre del bar
+    const { data: negocio } = await supabase.from('negocios').select('nombre_comercial').eq('id', negocioIdActual).single();
+    if(negocio) {
+        document.getElementById('tituloBar').textContent = `🍻 ${negocio.nombre_comercial} - Terminal POS`;
+    }
+
+    await obtenerProductos();
+    await cargarMesas();
+}
+
+// --- 2. GESTIÓN DE PRODUCTOS (Reemplazo de Google Script) ---
+async function obtenerProductos() {
+    const { data, error } = await supabase.from('productos')
+        .select('*').eq('negocio_id', negocioIdActual).eq('disponible', true).order('nombre');
+    
+    if(error) { alert("Error al cargar productos: " + error.message); return; }
+    
+    listaProductosGlobal = data;
     const select = document.getElementById('selectProducto');
     select.innerHTML = '<option value="">-- Selecciona un producto --</option>';
     
-    productos.forEach(function(producto) {
-      const option = document.createElement('option');
-      option.value = producto.nombre;
-      // Guardamos el precio escondido en la opción para usarlo al sumar la cuenta
-      option.setAttribute('data-precio', producto.precio);
-      option.textContent = `${producto.nombre} - $${producto.precio}`;
-      select.appendChild(option);
+    data.forEach(producto => {
+        const option = document.createElement('option');
+        option.value = producto.id; // Usamos ID en vez de nombre
+        option.setAttribute('data-precio', producto.precio_actual);
+        option.textContent = `${producto.nombre} - $${producto.precio_actual}`;
+        select.appendChild(option);
     });
-  }
+}
 
-  // 3. Funciones del Modal
-  function abrirModal(elemento) {
-    mesaActual = elemento.getAttribute('data-mesa');
-    document.getElementById('tituloModal').textContent = (mesaActual === '5') ? 'Barra' : 'Mesa ' + mesaActual;
+// --- 3. DIBUJAR MESAS DESDE SUPABASE ---
+async function cargarMesas() {
+    const { data: mesas } = await supabase.from('mesas').select('*').eq('negocio_id', negocioIdActual).eq('activa', true).order('etiqueta');
+    const { data: cuentas } = await supabase.from('cuentas').select('*').eq('negocio_id', negocioIdActual).eq('estado', 'abierta');
+
+    const contenedor = document.getElementById('contenedorMesas');
+    if(!contenedor) return;
+    contenedor.innerHTML = '';
     
-    actualizarVistaCuenta(); // Mostramos lo que ya haya pedido esta mesa antes
-    document.getElementById('modalPedido').style.display = 'flex';
-  }
+    if(!mesas || mesas.length === 0) {
+        contenedor.innerHTML = '<p style="color: #7f8c8d;">No hay mesas habilitadas.</p>';
+        return;
+    }
 
-  function cerrarModal() {
+    mesas.forEach(mesa => {
+        const cuentaAbierta = (cuentas || []).find(c => c.mesa_id === mesa.id);
+        const isOcupada = !!cuentaAbierta;
+
+        const div = document.createElement('div');
+        div.className = `mesa ${isOcupada ? 'ocupada' : ''}`;
+        
+        // Inyectamos el botón del tache (X) y forzamos el diseño del texto
+        div.innerHTML = `
+            <button class="btn-borrar-mesa" title="Ocultar Mesa" onclick="event.stopPropagation(); ocultarMesa('${mesa.id}', ${isOcupada})">✖</button>
+            <span style="font-size: 1.2em; font-weight: bold;">${mesa.etiqueta}</span>
+            <div class="estado" style="color: ${isOcupada ? '#c0392b' : '#27ae60'};">${isOcupada ? 'Ocupada' : 'Libre'}</div>
+        `;
+        
+        div.onclick = () => window.abrirModal(mesa.id, mesa.etiqueta, cuentaAbierta);
+        contenedor.appendChild(div);
+    });
+}
+
+// --- 4. HABILITAR NUEVAS MESAS ---
+document.getElementById('btnAgregarMesa')?.addEventListener('click', async () => {
+    const etiqueta = prompt('Escribe el nombre de la mesa (Ej. Mesa 1, Terraza A):');
+    if(!etiqueta) return;
+    await supabase.from('mesas').insert([{ negocio_id: negocioIdActual, etiqueta: etiqueta, activa: true }]);
+    cargarMesas();
+});
+
+window.cerrarModalPedido = function() {
     document.getElementById('modalPedido').style.display = 'none';
     document.getElementById('selectProducto').value = '';
-    mesaActual = null;
-  }
+    mesaActualId = null;
+    cuentaActivaId = null;
+};
 
-  // 4. Lógica para agregar al carrito
-  function agregarProducto() {
-    const select = document.getElementById('selectProducto');
+// --- 5. LOGICA DEL MODAL DE PEDIDOS ---
+window.abrirModal = async function(mesaId, etiqueta, cuentaExistente) {
+    mesaActualId = mesaId;
+    document.getElementById('tituloModalMesa').textContent = etiqueta;
     
-    const nombreProducto = select.value;
-    const cantidad = 1; // <--- Siempre agregamos 1 por defecto al hacer clic
-    
-    if (nombreProducto === '') {
-      alert('Por favor selecciona un producto.');
-      return;
-    }
-
-    const opcionSeleccionada = select.options[select.selectedIndex];
-    const precioUnitario = parseFloat(opcionSeleccionada.getAttribute('data-precio'));
-
-    // Buscamos si el producto ya está en la cuenta de esta mesa
-    const indexExistente = cuentasMesas[mesaActual].findIndex(item => item.nombre === nombreProducto);
-
-    if (indexExistente !== -1) {
-      // Si ya existe, le sumamos 1 a la cantidad
-      cuentasMesas[mesaActual][indexExistente].cantidad += cantidad;
+    if (cuentaExistente) {
+        cuentaActivaId = cuentaExistente.id;
+        await actualizarVistaCuenta();
     } else {
-      // Si es nuevo, lo agregamos al arreglo con cantidad 1
-      cuentasMesas[mesaActual].push({ 
-        nombre: nombreProducto, 
-        precio: precioUnitario, 
-        cantidad: cantidad 
-      });
+        // La mesa está libre, NO creamos la cuenta todavía
+        cuentaActivaId = null;
+        const lista = document.getElementById('listaCuenta');
+        lista.innerHTML = '<li style="color: #7f8c8d; font-style: italic;">Mesa libre. Agrega un producto para abrir la cuenta.</li>';
+        document.getElementById('totalCuenta').textContent = '0.00';
     }
     
-    // Actualizamos la vista para que aparezca en la lista con los botones + y -
-    actualizarVistaCuenta();
-    
-    // Limpiamos la selección para el siguiente pedido
-    select.value = ''; 
-  }
+    document.getElementById('modalPedido').style.display = 'flex';
+};
 
-// 5. Función que dibuja la lista con controles de cantidad y subtotal
-  function actualizarVistaCuenta() {
+// --- 6. AGREGAR A LA COMANDA ---
+window.agregarProductoCuenta = async function() {
+    const select = document.getElementById('selectProducto');
+    const productoId = select.value;
+    const cantidadInput = document.getElementById('cantidadProducto');
+    const cantidad = cantidadInput ? parseInt(cantidadInput.value) : 1;
+    
+    if (!productoId) { alert('Por favor selecciona un producto.'); return; }
+
+    // Si la mesa estaba libre, creamos la cuenta en este preciso instante
+    if (!cuentaActivaId) {
+        const { data: nuevaCuenta } = await supabase.from('cuentas').insert([{
+            negocio_id: negocioIdActual, 
+            mesa_id: mesaActualId, 
+            mesero_id: usuarioId, 
+            estado: 'abierta', 
+            total: 0,
+            fecha_apertura: obtenerFechaLocal() // <-- ¡Hora local exacta de apertura!
+        }]).select().single();
+        
+        cuentaActivaId = nuevaCuenta.id;
+        cargarMesas(); 
+    }
+
+    const producto = listaProductosGlobal.find(p => p.id === productoId);
+    
+    const { data: existente } = await supabase.from('comandas')
+        .select('*').eq('cuenta_id', cuentaActivaId).eq('producto_id', productoId).eq('estado_preparacion', 'pendiente').single();
+
+    if (existente) {
+        await supabase.from('comandas').update({ cantidad: existente.cantidad + cantidad }).eq('id', existente.id);
+    } else {
+        await supabase.from('comandas').insert([{
+            negocio_id: negocioIdActual, cuenta_id: cuentaActivaId, producto_id: productoId, 
+            cantidad: cantidad, precio_unitario: producto.precio_actual, estado_preparacion: 'pendiente'
+        }]);
+    }
+    
+    select.value = ''; 
+    if(cantidadInput) cantidadInput.value = 1;
+    await actualizarVistaCuenta();
+};
+
+// --- 7. DIBUJAR CUENTA Y BOTONES +/- ---
+async function actualizarVistaCuenta() {
     const lista = document.getElementById('listaCuenta');
     const labelTotal = document.getElementById('totalCuenta');
     lista.innerHTML = '';
-    
     let totalGlobal = 0;
-    const productosDeLaMesa = cuentasMesas[mesaActual];
 
-    if (productosDeLaMesa.length === 0) {
-      lista.innerHTML = '<li style="color: #7f8c8d; font-style: italic;">Sin productos aún</li>';
+    const { data: comandas } = await supabase.from('comandas').select('*').eq('cuenta_id', cuentaActivaId).order('fecha_solicitud');
+
+    if (!comandas || comandas.length === 0) {
+        lista.innerHTML = '<li style="color: #7f8c8d; font-style: italic;">Sin productos aún</li>';
     } else {
-      productosDeLaMesa.forEach(function(item, index) {
-        const subtotal = item.precio * item.cantidad;
-        totalGlobal += subtotal;
-        
-        const li = document.createElement('li');
-        li.className = 'item-cuenta';
-        li.style.borderBottom = "1px solid #f0f0f0";
-        li.style.padding = "8px 0";
-        li.style.display = "flex";
-        li.style.justifyContent = "space-between";
-        li.style.alignItems = "center";
-        
-        li.innerHTML = `
-          <div style="flex-grow: 1;">
-            <strong style="color: #2c3e50;">${item.nombre}</strong><br>
-            <span style="color: #7f8c8d; font-size: 0.85rem;">$${item.precio.toFixed(2)} c/u</span>
-          </div>
-          
-          <!-- Controles de Cantidad y Totales -->
-          <div style="display: flex; align-items: center; gap: 15px;">
+        comandas.forEach(function(item) {
+            const producto = listaProductosGlobal.find(p => p.id === item.producto_id);
+            const nombre = producto ? producto.nombre : 'Desconocido';
+            const subtotal = item.precio_unitario * item.cantidad;
+            totalGlobal += subtotal;
+            const estadoEmoji = item.estado_preparacion === 'pendiente' ? '⏳' : '✅';
             
-            <!-- Botones + y - -->
-            <div style="display: flex; align-items: center; background-color: #ecf0f1; border-radius: 20px; padding: 2px 8px;">
-              <button onclick="disminuirCantidad(${index})" style="border: none; background: none; color: #e74c3c; font-weight: bold; font-size: 1.2rem; cursor: pointer; padding: 0 5px;">-</button>
-              <span style="font-weight: bold; min-width: 20px; text-align: center; font-size: 1rem;">${item.cantidad}</span>
-              <button onclick="aumentarCantidad(${index})" style="border: none; background: none; color: #27ae60; font-weight: bold; font-size: 1.2rem; cursor: pointer; padding: 0 5px;">+</button>
-            </div>
-            
-            <strong style="min-width: 65px; text-align: right;">$${subtotal.toFixed(2)}</strong>
-            
-            <!-- Botón Eliminar (Tachuela roja) -->
-            <button onclick="eliminarProducto(${index})" style="background: none; border: none; color: #c0392b; cursor: pointer; font-weight: bold; font-size: 1.2rem; padding: 0;">&times;</button>
-          </div>
-        `;
-        lista.appendChild(li);
-      });
+            lista.innerHTML += `
+            <li style="border-bottom: 1px solid #f0f0f0; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex-grow: 1;">
+                    <strong style="color: #2c3e50;">${nombre} ${estadoEmoji}</strong><br>
+                    <span style="color: #7f8c8d; font-size: 0.85rem;">$${item.precio_unitario} c/u</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; background-color: #ecf0f1; border-radius: 20px; padding: 2px 8px;">
+                        <button onclick="disminuirCantidad('${item.id}', ${item.cantidad})" style="border: none; background: none; color: #e74c3c; font-weight: bold; cursor: pointer;">-</button>
+                        <span style="font-weight: bold; min-width: 20px; text-align: center;">${item.cantidad}</span>
+                        <button onclick="aumentarCantidad('${item.id}', ${item.cantidad})" style="border: none; background: none; color: #27ae60; font-weight: bold; cursor: pointer;">+</button>
+                    </div>
+                    <strong style="min-width: 65px; text-align: right;">$${subtotal.toFixed(2)}</strong>
+                    <button onclick="eliminarProducto('${item.id}')" style="background: none; border: none; color: #c0392b; cursor: pointer; font-size: 1.2rem;">&times;</button>
+                </div>
+            </li>`;
+        });
     }
     
     labelTotal.textContent = totalGlobal.toFixed(2);
-    actualizarEstadoMesas();
-  }
+}
 
-  // 6. Lógica para cobrar y limpiar la cuenta
-  function pagarCuenta() {
-    // Verificamos si hay algo que cobrar
-    if (cuentasMesas[mesaActual].length === 0) {
-      alert('La cuenta ya está en $0.00, no hay nada que cobrar.');
-      return;
+// Funciones globales para botones +/-/Eliminar en Supabase
+window.aumentarCantidad = async function(comandaId, cantidadActual) {
+    await supabase.from('comandas').update({ cantidad: cantidadActual + 1 }).eq('id', comandaId);
+    actualizarVistaCuenta();
+};
+window.disminuirCantidad = async function(comandaId, cantidadActual) {
+    if (cantidadActual > 1) {
+        await supabase.from('comandas').update({ cantidad: cantidadActual - 1 }).eq('id', comandaId);
+        actualizarVistaCuenta();
+    } else {
+        window.eliminarProducto(comandaId);
+    }
+};
+window.eliminarProducto = async function(comandaId) {
+    await supabase.from('comandas').delete().eq('id', comandaId);
+    actualizarVistaCuenta();
+};
+
+// --- 8. COBRAR CUENTA ---
+document.getElementById('btnPagar')?.addEventListener('click', async () => {
+    if(!cuentaActivaId) {
+        alert("Error: No se detectó una cuenta activa.");
+        return; 
     }
 
-    // Pedimos confirmación para evitar clics accidentales
-    const confirmar = confirm('¿Confirmas el pago total de esta mesa?');
-    
-    if (confirmar) {
-      // 1. Vaciamos el arreglo de productos de esa mesa
-      cuentasMesas[mesaActual] = [];
-      
-      // 2. Actualizamos la vista para que el modal quede en ceros
-      actualizarVistaCuenta();
-      
-      // 3. Avisamos que se cobró con éxito
-      alert('¡Cuenta pagada! La mesa está lista para una nueva orden.');
-      
-      // 4. Cerramos el modal automáticamente
-      cerrarModal();
+    const totalCalculado = parseFloat(document.getElementById('totalCuenta').textContent);
+    if(totalCalculado === 0) { 
+        alert('La cuenta está en ceros, no hay nada que cobrar.'); 
+        return; 
     }
-  }
 
-  // --- LÓGICA PARA NUEVOS PRODUCTOS ---
+    if (confirm(`¿Confirmas el cobro total por $${totalCalculado} y liberar la mesa?`)) {
+        try {
+            // Generamos la fecha compensando la diferencia de zona horaria local
+            const fechaActual = new Date();
+            const compensacionMinutos = fechaActual.getTimezoneOffset();
+            const fechaLocalCompensada = new Date(fechaActual.getTime() - (compensacionMinutos * 60000));
+            // Formateamos para que Supabase lo acepte perfectamente
+            const timestampLocal = fechaLocalCompensada.toISOString();
 
-  function abrirModalProducto() {
+            const { error } = await supabase.from('cuentas')
+                .update({ 
+                    estado: 'cerrada', 
+                    total: totalCalculado,
+                    fecha_cierre: obtenerFechaLocal()
+                })
+                .eq('id', cuentaActivaId);
+
+            if (error) {
+                console.error("Detalle técnico del error:", error);
+                throw new Error(error.message);
+            }
+
+            alert('¡Cuenta pagada y mesa liberada!');
+            window.cerrarModalPedido();
+            cargarMesas();
+            
+        } catch (error) {
+            alert('❌ No se pudo liberar la mesa. Revisa la consola.');
+        }
+    }
+});
+
+// --- 9. INVENTARIO (Solo Admin) ---
+window.abrirModalNuevoProducto = function() {
     document.getElementById('modalNuevoProducto').style.display = 'flex';
-  }
-
-  function cerrarModalProducto() {
+};
+window.cerrarModalProducto = function() {
     document.getElementById('modalNuevoProducto').style.display = 'none';
     document.getElementById('nuevoNombre').value = '';
     document.getElementById('nuevoCosto').value = '';
-  }
-
-  function guardarProducto() {
+};
+window.guardarProducto = async function(event) {
     const nombre = document.getElementById('nuevoNombre').value;
     const costo = parseFloat(document.getElementById('nuevoCosto').value);
-
-    // Validamos que los campos no estén vacíos
-    if (nombre.trim() === '' || isNaN(costo) || costo <= 0) {
-      alert('Por favor ingresa un nombre y un costo válido.');
-      return;
-    }
-
-    // Cambiamos el texto del botón para que el usuario sepa que está cargando
-    const btn = event.target;
-    btn.textContent = "Guardando...";
-    btn.disabled = true;
-
-    // Enviamos los datos a Google Sheets
-    google.script.run
-      .withSuccessHandler(function(respuesta) {
-        alert('¡Producto guardado exitosamente!');
-        cerrarModalProducto();
-        
-        // Restauramos el botón
-        btn.textContent = "💾 Guardar en Inventario";
-        btn.disabled = false;
-        
-        // (Opcional) Volvemos a pedir los productos para que el nuevo aparezca en los menús de las mesas
-        google.script.run.withSuccessHandler(llenarDesplegable).obtenerProductos();
-      })
-      .withFailureHandler(function(error) {
-        alert('Error al guardar: ' + error);
-        btn.textContent = "💾 Guardar en Inventario";
-        btn.disabled = false;
-      })
-      .guardarNuevoProducto(nombre, costo);
-  }
-
-  // --- LÓGICA PARA MODIFICAR PRODUCTOS ---
-
-  function abrirModalModificar() {
-    document.getElementById('modalModificarProducto').style.display = 'flex';
+    if (nombre.trim() === '' || isNaN(costo) || costo <= 0) return alert('Ingresa datos válidos.');
     
+    const btn = event.target;
+    btn.textContent = "Guardando..."; btn.disabled = true;
+
+    await supabase.from('productos').insert([{ negocio_id: negocioIdActual, nombre, precio_actual: costo, disponible: true }]);
+    
+    alert('¡Producto guardado exitosamente!');
+    cerrarModalProducto();
+    btn.textContent = "💾 Guardar en Inventario"; btn.disabled = false;
+    await obtenerProductos(); // Recargamos el menú
+};
+
+// --- MODIFICAR PRODUCTO ---
+window.abrirModalModificarProducto = function() {
+    document.getElementById('modalModificarProducto').style.display = 'flex';
     const select = document.getElementById('selectModificar');
     select.innerHTML = '<option value="">-- Elige un producto --</option>';
-    
-    // Llenamos el select con los productos que ya tenemos en memoria
-    listaProductosGlobal.forEach(function(producto) {
-      const option = document.createElement('option');
-      option.value = producto.nombre;
-      option.setAttribute('data-precio', producto.precio);
-      option.textContent = `${producto.nombre} - $${producto.precio}`;
-      select.appendChild(option);
+    listaProductosGlobal.forEach(p => {
+        select.innerHTML += `<option value="${p.id}" data-precio="${p.precio_actual}">${p.nombre} - $${p.precio_actual}</option>`;
     });
-    
-    // Limpiamos los inputs
-    document.getElementById('modificarNombre').value = '';
-    document.getElementById('modificarCosto').value = '';
-  }
-
-  function cerrarModalModificar() {
+};
+window.cerrarModalModificar = function() {
     document.getElementById('modalModificarProducto').style.display = 'none';
-  }
-
-  // Se activa sola cuando eliges un producto del menú desplegable
-  function cargarDatosModificar() {
+};
+window.cargarDatosModificar = function() {
     const select = document.getElementById('selectModificar');
-    const nombre = select.value;
-    
-    if (nombre === "") {
-       document.getElementById('modificarNombre').value = '';
-       document.getElementById('modificarCosto').value = '';
-       return;
-    }
-    
-    const opcionSeleccionada = select.options[select.selectedIndex];
-    const precio = opcionSeleccionada.getAttribute('data-precio');
-    
-    // Autocompletamos los campos con los datos actuales
-    document.getElementById('modificarNombre').value = nombre;
-    document.getElementById('modificarCosto').value = precio;
-  }
-
-  function guardarModificacion() {
-    const select = document.getElementById('selectModificar');
-    const nombreOriginal = select.value; // Necesitamos saber cuál era el nombre antes del cambio
-    
-    if (nombreOriginal === "") {
-      alert('Selecciona un producto primero');
-      return;
-    }
-    
+    const prodId = select.value;
+    if (!prodId) return;
+    const producto = listaProductosGlobal.find(p => p.id === prodId);
+    document.getElementById('modificarNombre').value = producto.nombre;
+    document.getElementById('modificarCosto').value = producto.precio_actual;
+};
+window.guardarModificacion = async function(event) {
+    const idOriginal = document.getElementById('selectModificar').value;
     const nuevoNombre = document.getElementById('modificarNombre').value;
     const nuevoCosto = parseFloat(document.getElementById('modificarCosto').value);
     
-    if (nuevoNombre.trim() === '' || isNaN(nuevoCosto) || nuevoCosto <= 0) {
-      alert('Por favor ingresa datos válidos.');
-      return;
-    }
-
+    if (!idOriginal || nuevoNombre.trim() === '' || isNaN(nuevoCosto)) return alert('Datos inválidos.');
+    
     const btn = event.target;
-    btn.textContent = "Actualizando...";
-    btn.disabled = true;
+    btn.textContent = "Actualizando..."; btn.disabled = true;
 
-    // Enviamos el cambio a Google Sheets
-    google.script.run
-      .withSuccessHandler(function() {
-        alert('¡Producto actualizado exitosamente!');
-        cerrarModalModificar();
-        btn.textContent = "💾 Actualizar Producto";
-        btn.disabled = false;
-        
-        // Volvemos a pedir todos los productos para que la vista se actualice
-        google.script.run.withSuccessHandler(llenarDesplegable).obtenerProductos();
-      })
-      .withFailureHandler(function(error) {
-        alert('Error al modificar: ' + error);
-        btn.textContent = "💾 Actualizar Producto";
-        btn.disabled = false;
-      })
-      .modificarProductoEnHoja(nombreOriginal, nuevoNombre, nuevoCosto);
-  }
+    await supabase.from('productos').update({ nombre: nuevoNombre, precio_actual: nuevoCosto }).eq('id', idOriginal);
+    
+    alert('¡Producto actualizado exitosamente!');
+    cerrarModalModificar();
+    btn.textContent = "💾 Actualizar Producto"; btn.disabled = false;
+    await obtenerProductos();
+};
 
-    // NUEVA FUNCIÓN: Para borrar una línea si se equivocan
-  function eliminarProducto(index) {
-    cuentasMesas[mesaActual].splice(index, 1);
-    actualizarVistaCuenta();
-  }
+document.getElementById('btnCerrarSesionTerminal')?.addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.replace('login.html');
+});
 
-  // NUEVAS FUNCIONES: Controles rápidos de cantidad
-  function aumentarCantidad(index) {
-    cuentasMesas[mesaActual][index].cantidad++;
-    actualizarVistaCuenta();
-  }
-
-  function disminuirCantidad(index) {
-    // Si la cantidad es mayor a 1, solo la restamos
-    if (cuentasMesas[mesaActual][index].cantidad > 1) {
-      cuentasMesas[mesaActual][index].cantidad--;
-      actualizarVistaCuenta();
-    } else {
-      // Si la cantidad es 1 y le dan al "-", interpretamos que quieren borrarlo
-      eliminarProducto(index);
+const intervalo = setInterval(() => {
+    if (window.usuarioActual) {
+        clearInterval(intervalo);
+        inicializarTerminal();
     }
-  }
+}, 50);
 
-  // NUEVA FUNCIÓN: Actualiza el texto y color de las mesas en el menú principal
-  function actualizarEstadoMesas() {
-    // Recorremos las 5 mesas (1 al 4, y 5 que es la barra)
-    for (let i = 1; i <= 5; i++) {
-      const numeroMesa = i.toString();
-      // Buscamos el texto de "estado" de esta mesa en específico
-      const elementoEstado = document.querySelector(`.mesa[data-mesa="${numeroMesa}"] .estado`);
-      
-      if (elementoEstado) {
-        // Si el arreglo de esta mesa tiene al menos 1 producto...
-        if (cuentasMesas[numeroMesa] && cuentasMesas[numeroMesa].length > 0) {
-          elementoEstado.textContent = 'Ocupada';
-          elementoEstado.style.color = '#e74c3c'; // Rojo
-        } else {
-          // Si está vacío (0 productos)...
-          elementoEstado.textContent = 'Libre';
-          elementoEstado.style.color = '#2ecc71'; // Verde
+window.ocultarMesa = async function() {
+    if (cuentaActivaId) {
+        alert("No puedes eliminar una mesa mientras tenga una cuenta abierta.");
+        return;
+    }
+    if (confirm("¿Seguro que deseas quitar esta mesa del piso de ventas?")) {
+        await supabase.from('mesas').update({ activa: false }).eq('id', mesaActualId);
+        window.cerrarModalPedido();
+        cargarMesas();
+    }
+};
+
+// --- FUNCIÓN PARA OCULTAR MESAS (SOFT DELETE) ---
+window.ocultarMesa = async function(mesaId, isOcupada) {
+    if (isOcupada) {
+        alert("❌ No puedes borrar una mesa que tiene una cuenta abierta. Por favor, cóbrala primero.");
+        return;
+    }
+    
+    const confirmar = confirm("¿Seguro que deseas quitar esta mesa de la vista? (Sus ventas históricas quedarán intactas).");
+    if (confirmar) {
+        try {
+            await supabase.from('mesas').update({ activa: false }).eq('id', mesaId);
+            cargarMesas(); // Recargamos para que desaparezca
+        } catch (error) {
+            alert("Hubo un error al ocultar la mesa.");
         }
-      }
     }
-  }
+};
+
+// --- FUNCIÓN AUXILIAR PARA HORA LOCAL ---
+function obtenerFechaLocal() {
+    const fechaActual = new Date();
+    const compensacionMinutos = fechaActual.getTimezoneOffset();
+    const fechaLocalCompensada = new Date(fechaActual.getTime() - (compensacionMinutos * 60000));
+    return fechaLocalCompensada.toISOString();
+}

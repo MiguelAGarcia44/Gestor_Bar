@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barra POS - SaaS</title>
+    
+    <style>
+        body { display: none; background-color: #1a1a2e; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
+        body.autorizado { display: block; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #30475e; padding-bottom: 15px; margin-bottom: 25px; }
+        .identificador { background: #30475e; color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: bold; }
+        
+        .tableros-container { display: flex; gap: 20px; }
+        
+        /* Columna Izquierda: PEDIDOS PENDIENTES (Fila FIFO) */
+        .columna-pendientes { flex: 2; background-color: #16213e; border-radius: 8px; padding: 20px; min-height: 80vh; }
+        
+        /* Columna Derecha: ÚLTIMOS ENTREGADOS */
+        .columna-entregados { flex: 1; background-color: #0f3460; border-radius: 8px; padding: 20px; min-height: 80vh; border-left: 5px solid #27ae60; }
+        
+        h2 { margin-top: 0; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        
+        /* Estilos de las Tarjetas/Tickets */
+        .ticket { background: #fff; color: #2c3e50; border-radius: 6px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-left: 6px solid #e74c3c; }
+        .ticket.entregado { border-left-color: #27ae60; opacity: 0.8; }
+        
+        .ticket-info { flex-grow: 1; }
+        .ticket-mesa { font-size: 1.3em; font-weight: bold; color: #e74c3c; margin-bottom: 5px; }
+        .ticket.entregado .ticket-mesa { color: #27ae60; }
+        .ticket-producto { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; }
+        .ticket-tiempo { font-size: 0.85em; color: #7f8c8d; }
+        
+        .btn-despachar { background-color: #27ae60; color: white; border: none; padding: 15px 25px; border-radius: 6px; font-size: 1.2em; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        .btn-despachar:hover { background-color: #219653; }
+        
+        .btn-salir { background-color: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    </style>
+
+    <script type="module">
+        import { protegerRuta } from './guardian.js';
+        
+        // SOLO admin y bartender pueden entrar aquí
+        protegerRuta(['admin', 'bartender']).then(datosUsuario => {
+            if (datosUsuario) {
+                document.body.classList.add('autorizado');
+                window.usuarioActual = datosUsuario; 
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1 style="margin: 0;" id="tituloBarra">🍹 Cargando Barra...</h1>
+            <div style="margin-top: 8px;" class="identificador">
+                👤 <span id="identificadorUsuario">Cargando usuario...</span>
+            </div>
+        </div>
+        <button class="btn-salir" id="btnCerrarSesion">Cerrar Sesión</button>
+    </div>
+
+    <div class="tableros-container">
+        
+        <!-- PENDIENTES -->
+        <div class="columna-pendientes">
+            <h2>🔥 Fila de Preparación</h2>
+            <div id="listaPendientes">
+                <p style="color: #7f8c8d; font-style: italic;">Esperando pedidos...</p>
+            </div>
+        </div>
+
+        <!-- ENTREGADOS -->
+        <div class="columna-entregados">
+            <h2>✅ Entregados (Cuentas Activas)</h2>
+            <div id="listaEntregados">
+                <p style="color: #7f8c8d; font-style: italic;">Sin entregas recientes.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="barra.js"></script>
+</body>
+</html>
