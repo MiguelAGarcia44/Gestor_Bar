@@ -435,3 +435,47 @@ entrypoint = "./functions/cambiar_password/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/cambiar_password/*.html" ]
+
+[functions.registrar_empleado]
+enabled = true
+verify_jwt = false
+import_map = "./functions/registrar_empleado/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/registrar_empleado/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/registrar_empleado/*.html" ]
+
+[functions.cambiar_password_empleado]
+enabled = true
+verify_jwt = false
+import_map = "./functions/cambiar_password_empleado/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/cambiar_password_empleado/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/cambiar_password_empleado/*.html" ]
+
+[functions.editar_cliente]
+enabled = true
+verify_jwt = false
+import_map = "./functions/editar_cliente/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/editar_cliente/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/editar_cliente/*.html" ]
+
+[functions.editar_empleado]
+enabled = true
+verify_jwt = false
+import_map = "./functions/editar_empleado/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/editar_empleado/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/editar_empleado/*.html" ]

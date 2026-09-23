@@ -49,9 +49,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 window.location.href = 'panel_local.html'; // Panel del dueño del bar
                 break;
             case 'mesero':
-            case 'bartender':
                 window.location.href = 'terminal.html'; // El Punto de Venta operativo
                 break;
+            case 'bartender':
+                window.location.href = 'barra.html'; // Panel del dueño del bar
+                break;    
             default:
                 throw new Error('Rol no reconocido por el sistema.');
         }

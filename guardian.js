@@ -8,14 +8,14 @@ export async function protegerRuta(rolesPermitidos) {
     if (!session) {
         // No está logueado, lo mandamos al login
         window.location.replace('login.html');
-        return null; 
+        return null;
     }
 
-    // 2. Si está logueado, verificamos qué rol tiene en la base de datos
+    // 2. Si está logueado, verificamos qué rol y datos tiene en la base de datos
     const userId = session.user.id;
     const { data: perfil, error } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('*') // <-- CAMBIO 1: Seleccionamos todo (nombre, negocio_id, rol)
         .eq('id', userId)
         .single();
 
@@ -32,6 +32,6 @@ export async function protegerRuta(rolesPermitidos) {
         return null;
     }
 
-    // Si pasa todas las pruebas, devolvemos la sesión por si la página necesita sus datos
-    return session; 
+    // CAMBIO 2: Devolvemos el "perfil" con toda la info de la tabla usuarios
+    return perfil;
 }

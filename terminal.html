@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal POS SaaS</title>
+    <link rel="stylesheet" href="style.css">
+
+<style>
+        body { display: none; background-color: #f4f6f8; font-family: Arial, sans-serif; margin: 0; padding: 20px; } 
+        body.autorizado { display: block; } 
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .mesas-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 20px; }
+        
+        /* ESTILOS CORREGIDOS DE LAS MESAS */
+        .mesa { 
+            position: relative; /* Necesario para posicionar la X */
+            background: white; 
+            border: 2px solid #3498db; 
+            border-radius: 8px; 
+            width: 120px; 
+            height: 120px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            cursor: pointer; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            transition: all 0.2s; 
+            color: #2c3e50; /* Fuerza a que el texto siempre sea oscuro */
+        }
+        .mesa:hover { 
+            transform: scale(1.05); 
+            background: #2c3e50; /* Tu fondo oscuro en hover */
+            color: white; /* El texto se vuelve blanco en hover */
+        }
+        .mesa.ocupada { 
+            border-color: #e74c3c; 
+            background-color: #fadbd8; 
+            color: #c0392b; 
+        }
+        .mesa.ocupada:hover {
+            background-color: #c0392b;
+            color: white;
+        }
+        .estado { font-size: 0.8em; margin-top: 10px; font-weight: bold; }
+        
+        /* EL BOTÓN DE TACHE (X) */
+        .btn-borrar-mesa {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none; /* Se oculta para mantener limpio el diseño */
+        }
+        .mesa:hover .btn-borrar-mesa {
+            display: block; /* Solo aparece cuando pasas el mouse por la mesa */
+        }
+        .btn-borrar-mesa:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+    </style>
+
+    <!-- Invocación del Guardián y captura de datos -->
+    <script type="module">
+        import { protegerRuta } from './guardian.js';
+
+        // Todos los roles operativos pueden entrar a la terminal
+        protegerRuta(['admin', 'mesero', 'bartender']).then(datosUsuario => {
+            if (datosUsuario) {
+                document.body.classList.add('autorizado');
+                window.usuarioActual = datosUsuario; // Guardamos en memoria global
+                
+                // Control de UI: Ocultamos inventario si es mesero o bartender
+                if (datosUsuario.rol !== 'admin') {
+                    document.getElementById('panelAdmin').style.display = 'none';
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+
+    <div style="margin-top: 8px; display: inline-block; background: #e8f8f5; color: #16a085; padding: 5px 10px; border-radius: 20px; font-size: 0.9em; font-weight: bold;">
+        👤 <span id="identificadorUsuario">Cargando usuario...</span>
+    </div>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
+            <h1 id="tituloBar" style="margin: 0; color: #2c3e50;">🍻 Cargando Terminal...</h1>
+            <button id="btnCerrarSesionTerminal" style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Cerrar Sesión</button>
+        </div>
+
+        <!-- PANEL DE INVENTARIO (Solo visible para el admin) -->
+        <div id="panelAdmin" style="text-align: center; margin-bottom: 20px; background: #ecf0f1; padding: 15px; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #34495e;">⚙️ Administración de Menú</h3>
+            <button style="padding: 10px 20px; background-color: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;" onclick="abrirModalNuevoProducto()">
+                ➕ Agregar Producto
+            </button>
+            <button style="padding: 10px 20px; background-color: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="abrirModalModificarProducto()">
+                ✏️ Modificar Producto
+            </button>
+        </div>
+
+        <!-- CONTROL DE MESAS -->
+        <div style="text-align: right; margin-bottom: 15px;">
+            <button id="btnAgregarMesa" style="padding: 10px 20px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                🪑 + Habilitar Nueva Mesa
+            </button>
+        </div>
+
+        <!-- CONTENEDOR DINÁMICO DE MESAS -->
+        <div class="mesas-container" id="contenedorMesas">
+            <p style="color: #7f8c8d; font-style: italic;">Sincronizando mesas con la bóveda...</p>
+        </div>
+    </div>
+
+    <!-- EL MODAL DE PEDIDO (Cuenta de la mesa) -->
+    <div id="modalPedido" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+        <div style="background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 id="tituloModalMesa" style="margin: 0; color: #2c3e50;">Mesa X</h2>
+                <button onclick="cerrarModalPedido()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d;">&times;</button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <select id="selectProducto" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="">Selecciona un producto...</option>
+                </select>
+                <input type="number" id="cantidadProducto" value="1" min="1" style="width: 60px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            
+            <button onclick="agregarProductoCuenta()" style="background: #3498db; color: white; border: none; padding: 12px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 20px;">Agregar a la cuenta</button>
+
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                <h4 style="margin-top: 0;">Detalle de la cuenta:</h4>
+                <ul id="listaCuenta" style="list-style: none; padding: 0; margin: 0; margin-bottom: 15px;">
+                    <li style="color: #7f8c8d; font-style: italic;">Sin productos aún</li>
+                </ul>
+                <h3 style="text-align: right; color: #2c3e50; border-top: 2px solid #ddd; padding-top: 10px;">Total: $<span id="totalCuenta">0.00</span></h3>          
+                <button id="btnPagar" style="background: #27ae60; color: white; border: none; padding: 12px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">💳 Cobrar y Liberar Mesa</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>    
+</body>
+</html>

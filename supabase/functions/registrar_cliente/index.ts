@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     // 1. Recibir los datos del formulario (panel maestro)
-    const { nombreComercial, emailAdmin, passwordAdmin } = await req.json()
+    const { nombreComercial, nombreAdmin, emailAdmin, passwordAdmin } = await req.json()
 
     // 2. Conectar a Supabase como "Súper Usuario" (Service Role)
     const supabaseAdmin = createClient(
@@ -48,7 +48,7 @@ serve(async (req) => {
       .insert([{
         id: authUser.user.id,
         negocio_id: negocio.id,
-        nombre_completo: 'Administrador Local',
+        nombre_completo: nombreAdmin, 
         rol: 'admin',
         activo: true
       }])
