@@ -22,7 +22,7 @@
 
     <!-- EL GUARDIÁN DE RUTAS (Aislamiento de Seguridad) -->
     <script type="module">
-        import { protegerRuta } from './guardian.js';
+        import { protegerRuta } from './js/core/guardian.js';
 
         // Estricto: Únicamente el dueño del software puede entrar aquí
         protegerRuta(['super_admin']).then(datosUsuario => {
@@ -114,6 +114,6 @@
     </div>
 
     <!-- Archivo lógico donde programaremos la conexión con la Edge Function -->
-    <script type="module" src="maestro.js"></script>
+    <script type="module" src="./js/controllers/maestro.js"></script>
 </body>
 </html>

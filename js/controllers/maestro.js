@@ -1,4 +1,4 @@
-import { supabase } from './conexion.js';
+import { supabase } from '../core/conexion.js';
 
 const form = document.getElementById('formNuevoCliente');
 const mensajeEstado = document.getElementById('mensajeEstado');

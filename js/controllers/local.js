@@ -1,4 +1,4 @@
-import { supabase } from './conexion.js';
+import { supabase } from '../core/conexion.js';
 
 // Elementos del DOM
 const form = document.getElementById('formNuevoEmpleado');
