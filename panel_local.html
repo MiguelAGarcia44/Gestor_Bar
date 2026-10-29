@@ -19,7 +19,7 @@
     </style>
 
     <script type="module">
-        import { protegerRuta } from './guardian.js';
+        import { protegerRuta } from './js/core/guardian.js';
         protegerRuta(['admin']).then(datosUsuario => {
             if (datosUsuario) {
                 document.body.classList.add('autorizado');
@@ -122,7 +122,6 @@
             <button onclick="document.getElementById('modalModificarProducto').style.display='none'" class="btn-accion" style="background-color: #ecf0f1; color: #7f8c8d;">Cancelar</button>
         </div>
     </div>
-
-    <script type="module" src="local.js"></script>
+    <script type="module" src="./js/controllers/local.js"></script>
 </body>
 </html>
