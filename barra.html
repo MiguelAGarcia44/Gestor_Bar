@@ -39,7 +39,7 @@
     </style>
 
     <script type="module">
-        import { protegerRuta } from './guardian.js';
+        import { protegerRuta } from './js/core/guardian.js';
         
         // SOLO admin y bartender pueden entrar aquí
         protegerRuta(['admin', 'bartender']).then(datosUsuario => {
@@ -61,9 +61,7 @@
         </div>
         <button class="btn-salir" id="btnCerrarSesion">Cerrar Sesión</button>
     </div>
-
     <div class="tableros-container">
-        
         <!-- PENDIENTES -->
         <div class="columna-pendientes">
             <h2>🔥 Fila de Preparación</h2>
@@ -71,7 +69,6 @@
                 <p style="color: #7f8c8d; font-style: italic;">Esperando pedidos...</p>
             </div>
         </div>
-
         <!-- ENTREGADOS -->
         <div class="columna-entregados">
             <h2>✅ Entregados (Cuentas Activas)</h2>
@@ -79,9 +76,7 @@
                 <p style="color: #7f8c8d; font-style: italic;">Sin entregas recientes.</p>
             </div>
         </div>
-
     </div>
-
-    <script type="module" src="barra.js"></script>
+    <script type="module" src="./js/controllers/barra.js"></script>
 </body>
 </html>

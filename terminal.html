@@ -72,7 +72,7 @@
 
     <!-- Invocación del Guardián y captura de datos -->
     <script type="module">
-        import { protegerRuta } from './guardian.js';
+        import { protegerRuta } from './js/core/guardian.js';
 
         // Todos los roles operativos pueden entrar a la terminal
         protegerRuta(['admin', 'mesero', 'bartender']).then(datosUsuario => {
@@ -151,7 +151,6 @@
             </div>
         </div>
     </div>
-
-    <script type="module" src="app.js"></script>    
+    <script type="module" src="./js/controllers/app.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { supabase } from './conexion.js';
+import { supabase } from '../core/conexion.js';
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();

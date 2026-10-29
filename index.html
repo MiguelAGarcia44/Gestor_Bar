@@ -14,7 +14,7 @@
 
     <!-- CAMBIO 2: Invocación del Guardián -->
     <script type="module">
-      import { protegerRuta } from './guardian.js';
+      import { protegerRuta } from './js/core/guardian.js';
 
       // Esta es la terminal, todos los roles operativos pueden entrar
       const rolesPermitidos = ['admin', 'mesero', 'bartender'];
@@ -98,6 +98,6 @@
     </div>
 
     <!-- CAMBIO 4: Cambiamos app.js a tipo módulo para que pueda importar Supabase -->
-    <script type="module" src="app.js"></script>    
+    <script type="module" src="./js/controllers/app.js"></script>    
   </body>
 </html>

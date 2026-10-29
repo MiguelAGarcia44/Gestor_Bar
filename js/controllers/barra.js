@@ -1,4 +1,4 @@
-import { supabase } from './conexion.js';
+import { supabase } from '../core/conexion.js';
 
 const tituloBarra = document.getElementById('tituloBarra');
 const identificadorUsuario = document.getElementById('identificadorUsuario');
