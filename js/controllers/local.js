@@ -24,7 +24,7 @@ async function inicializarPanel() {
             .from('negocios').select('nombre_comercial').eq('id', negocio_id).single();
 
         if (errorNegocio) throw errorNegocio;
-        tituloNegocio.textContent = `🏢 ${negocio.nombre_comercial}`;
+        tituloNegocio.textContent = `${negocio.nombre_comercial}`;
 
         cargarEmpleados();
         obtenerCatálogoProductos(); // Cargamos productos al iniciar
