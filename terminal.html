@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Terminal POS SaaS</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Comensales</title>
+    <link rel="stylesheet" href="./assets/css/style.css">
 
 <style>
         body { display: none; background-color: #f4f6f8; font-family: Arial, sans-serif; margin: 0; padding: 20px; } 
@@ -96,13 +96,13 @@
 
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
-            <h1 id="tituloBar" style="margin: 0; color: #2c3e50;">🍻 Cargando Terminal...</h1>
+            <h1 id="tituloBar" style="margin: 0; color: #2c3e50;">Cargando Terminal...</h1>
             <button id="btnCerrarSesionTerminal" style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Cerrar Sesión</button>
         </div>
 
         <!-- PANEL DE INVENTARIO (Solo visible para el admin) -->
         <div id="panelAdmin" style="text-align: center; margin-bottom: 20px; background: #ecf0f1; padding: 15px; border-radius: 8px;">
-            <h3 style="margin-top: 0; color: #34495e;">⚙️ Administración de Menú</h3>
+            <h3 style="margin-top: 0; color: #34495e;">Administración de Menú</h3>
             <button style="padding: 10px 20px; background-color: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;" onclick="abrirModalNuevoProducto()">
                 ➕ Agregar Producto
             </button>
@@ -114,7 +114,7 @@
         <!-- CONTROL DE MESAS -->
         <div style="text-align: right; margin-bottom: 15px;">
             <button id="btnAgregarMesa" style="padding: 10px 20px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                🪑 + Habilitar Nueva Mesa
+                + Habilitar Nueva Mesa
             </button>
         </div>
 
@@ -147,10 +147,10 @@
                     <li style="color: #7f8c8d; font-style: italic;">Sin productos aún</li>
                 </ul>
                 <h3 style="text-align: right; color: #2c3e50; border-top: 2px solid #ddd; padding-top: 10px;">Total: $<span id="totalCuenta">0.00</span></h3>          
-                <button id="btnPagar" style="background: #27ae60; color: white; border: none; padding: 12px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">💳 Cobrar y Liberar Mesa</button>
+                <button id="btnPagar" style="background: #27ae60; color: white; border: none; padding: 12px; width: 100%; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">Cobrar y Liberar Mesa</button>
             </div>
         </div>
     </div>
-    <script type="module" src="./js/controllers/app.js"></script>
+    <script type="module" src="./js/controllers/terminal.js"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ async function inicializarBarra() {
 
     // Título del Bar
     const { data: negocio } = await supabase.from('negocios').select('nombre_comercial').eq('id', negocioIdActual).single();
-    if(negocio) tituloBarra.textContent = `🍹 ${negocio.nombre_comercial} - Barra`;
+    if(negocio) tituloBarra.textContent = `${negocio.nombre_comercial} - Barra`;
 
     // Cargamos catálogos base en memoria para no hacer tantas consultas
     await obtenerCatalogosBase();
@@ -51,7 +51,7 @@ async function actualizarTableros() {
             .select('id, cuenta_id, producto_id, cantidad, fecha_solicitud')
             .eq('negocio_id', negocioIdActual)
             .eq('estado_preparacion', 'pendiente')
-            .order('fecha_solicitud', { ascending: true }); // El truco del FIFO está aquí
+            .order('fecha_solicitud', { ascending: true });
 
         // 2. Buscamos comandas entregadas, pero SOLO de cuentas que sigan ABIERTAS
         const { data: entregados } = await supabase.from('comandas')
@@ -68,7 +68,7 @@ async function actualizarTableros() {
         // 3. Dibujamos PENDIENTES
         listaPendientes.innerHTML = '';
         if (!pendientes || pendientes.length === 0) {
-            listaPendientes.innerHTML = '<p style="color: #7f8c8d; font-style: italic; font-size: 1.2em; text-align: center; padding: 20px;">Sin pedidos pendientes 🙌</p>';
+            listaPendientes.innerHTML = '<p style="color: #7f8c8d; font-style: italic; font-size: 1.2em; text-align: center; padding: 20px;">Sin pedidos pendientes </p>';
         } else {
             for (const item of pendientes) {
                 // Buscamos el nombre del producto

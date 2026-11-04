@@ -95,7 +95,7 @@ async function cargarNegocios() {
 
             li.innerHTML = `
                 <div>
-                    <strong>🏢 ${negocio.nombre_comercial}</strong>
+                    <strong> ${negocio.nombre_comercial}</strong>
                     <div style="font-size: 0.85em; color: #7f8c8d; margin-top: 4px;">👤 Dueño: ${nombreAdmin}</div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -105,7 +105,7 @@ async function cargarNegocios() {
                     
                     <button onclick="abrirModalEditar('${negocio.id}', '${negocio.nombre_comercial}', '${nombreAdmin}')" 
                             style="background: #f39c12; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 0.85em; font-weight: bold;" title="Editar Cliente">
-                        ✏️ Editar
+                        Editar
                     </button>
                     
                     <button onclick="cambiarEstatus('${negocio.id}', ${!isActivo})" 
