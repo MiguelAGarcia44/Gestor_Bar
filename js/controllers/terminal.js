@@ -24,7 +24,7 @@ async function inicializarTerminal() {
     // 2. Cargar nombre del bar
     const { data: negocio } = await supabase.from('negocios').select('nombre_comercial').eq('id', negocioIdActual).single();
     if(negocio) {
-        document.getElementById('tituloBar').textContent = `🍻 ${negocio.nombre_comercial} - Terminal POS`;
+        document.getElementById('tituloBar').textContent = `${negocio.nombre_comercial} `;
     }
 
     await obtenerProductos();
@@ -84,12 +84,55 @@ async function cargarMesas() {
     });
 }
 
-// --- 4. HABILITAR NUEVAS MESAS ---
+// --- 4. HABILITAR NUEVAS MESAS (CON REUSO DE HISTORIAL) ---
 document.getElementById('btnAgregarMesa')?.addEventListener('click', async () => {
-    const etiqueta = prompt('Escribe el nombre de la mesa (Ej. Mesa 1, Terraza A):');
-    if(!etiqueta) return;
-    await supabase.from('mesas').insert([{ negocio_id: negocioIdActual, etiqueta: etiqueta, activa: true }]);
-    cargarMesas();
+    const nombreMesa = prompt("Ingresa el nombre o número de la nueva mesa (Ej. Mesa 1):");
+    if (!nombreMesa || nombreMesa.trim() === '') return;
+
+    const etiquetaLimpia = nombreMesa.trim();
+
+    try {
+        // 1. Buscamos si la mesa ya existe en el historial del negocio
+        const { data: mesaExistente } = await supabase
+            .from('mesas')
+            .select('id, activa')
+            .eq('negocio_id', negocioIdActual)
+            .ilike('etiqueta', etiquetaLimpia) 
+            .maybeSingle();
+
+        if (mesaExistente) {
+            // 2. Si ya existe y está activa, avisamos
+            if (mesaExistente.activa) {
+                alert("Esta mesa ya se encuentra activa en el piso.");
+                return;
+            }
+            // 3. Si existe pero estaba oculta, la revivimos (UPDATE)
+            const { error: updateError } = await supabase
+                .from('mesas')
+                .update({ activa: true })
+                .eq('id', mesaExistente.id);
+                
+            if (updateError) throw updateError;
+        } else {
+            // 4. Si es totalmente nueva, la creamos (INSERT)
+            const { error: insertError } = await supabase
+                .from('mesas')
+                .insert([{
+                    negocio_id: negocioIdActual,
+                    etiqueta: etiquetaLimpia,
+                    activa: true
+                }]);
+                
+            if (insertError) throw insertError;
+        }
+
+        // Refrescamos la vista
+        cargarMesas();
+
+    } catch (error) {
+        console.error("Error técnico:", error);
+        alert("Hubo un problema al habilitar la mesa. Revisa la consola.");
+    }
 });
 
 window.cerrarModalPedido = function() {
@@ -235,18 +278,12 @@ document.getElementById('btnPagar')?.addEventListener('click', async () => {
 
     if (confirm(`¿Confirmas el cobro total por $${totalCalculado} y liberar la mesa?`)) {
         try {
-            // Generamos la fecha compensando la diferencia de zona horaria local
-            const fechaActual = new Date();
-            const compensacionMinutos = fechaActual.getTimezoneOffset();
-            const fechaLocalCompensada = new Date(fechaActual.getTime() - (compensacionMinutos * 60000));
-            // Formateamos para que Supabase lo acepte perfectamente
-            const timestampLocal = fechaLocalCompensada.toISOString();
-
+            // Ya no construimos la fecha aquí; usamos la función auxiliar
             const { error } = await supabase.from('cuentas')
                 .update({ 
                     estado: 'cerrada', 
                     total: totalCalculado,
-                    fecha_cierre: obtenerFechaLocal()
+                    fecha_cierre: obtenerFechaLocal() // <-- ¡Hora local exacta de cierre!
                 })
                 .eq('id', cuentaActivaId);
 
@@ -340,19 +377,8 @@ const intervalo = setInterval(() => {
     }
 }, 50);
 
-window.ocultarMesa = async function() {
-    if (cuentaActivaId) {
-        alert("No puedes eliminar una mesa mientras tenga una cuenta abierta.");
-        return;
-    }
-    if (confirm("¿Seguro que deseas quitar esta mesa del piso de ventas?")) {
-        await supabase.from('mesas').update({ activa: false }).eq('id', mesaActualId);
-        window.cerrarModalPedido();
-        cargarMesas();
-    }
-};
-
 // --- FUNCIÓN PARA OCULTAR MESAS (SOFT DELETE) ---
+// (Mantenemos solo esta versión para evitar duplicados)
 window.ocultarMesa = async function(mesaId, isOcupada) {
     if (isOcupada) {
         alert("❌ No puedes borrar una mesa que tiene una cuenta abierta. Por favor, cóbrala primero.");
