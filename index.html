@@ -1,103 +1,95 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <base target="_top">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Aquí llamamos a tu archivo de estilos -->
-    <link rel="stylesheet" href="style.css">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor Bar - Redireccionando...</title>
+  <link rel="stylesheet" href="./assets/css/style.css">
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f6f8;
+      font-family: Arial, sans-serif;
+      color: #2c3e50;
+    }
+    .loading-card {
+      text-align: center;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .spinner {
+      margin: 15px auto;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <p>Iniciando Gestor Bar...</p>
+  </div>
 
-    <!-- CAMBIO 1: CSS para evitar el parpadeo de la página -->
-    <style>
-      body { display: none; } /* Oculta todo por defecto */
-      body.autorizado { display: block; } /* Lo muestra si el guardián da luz verde */
-    </style>
+  <script type="module">
+    import { supabase } from './js/core/conexion.js';
 
-    <!-- CAMBIO 2: Invocación del Guardián -->
-    <script type="module">
-      import { protegerRuta } from './js/core/guardian.js';
-
-      // Esta es la terminal, todos los roles operativos pueden entrar
-      const rolesPermitidos = ['admin', 'mesero', 'bartender'];
-
-      protegerRuta(rolesPermitidos).then(datosUsuario => {
-        if (datosUsuario) {
-          // 1. Damos luz verde y mostramos el contenido
-          document.body.classList.add('autorizado');
-          
-          // 2. Control de UI: Si NO es administrador, le ocultamos los botones de inventario
-          if (datosUsuario.rol !== 'admin') {
-            document.getElementById('panelAdmin').style.display = 'none';
-          }
+    async function redirigir() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          window.location.replace('login.html');
+          return;
         }
-      });
-    </script>
-  </head>
-  <body>
 
-    <h1>🍻 Bar Oveja Negra</h1>
+        const { data: perfil, error } = await supabase
+          .from('usuarios')
+          .select('rol, activo')
+          .eq('id', session.user.id)
+          .single();
 
-    <!-- CAMBIO 3: Agregamos el id="panelAdmin" para poder ocultar esta sección completa -->
-    <div id="panelAdmin" style="text-align: center; margin-bottom: 20px;">
-      <button class="btn-agregar" style="width: auto; padding: 10px 20px; background-color: #8e44ad; margin-right: 10px;" onclick="abrirModalProducto()">
-        ➕ Agregar Nuevo
-      </button>
-      <button class="btn-agregar" style="width: auto; padding: 10px 20px; background-color: #f39c12;" onclick="abrirModalModificar()">
-        ✏️ Modificar Producto
-      </button>
-    </div>
+        if (error || !perfil || !perfil.activo) {
+          await supabase.auth.signOut();
+          window.location.replace('login.html');
+          return;
+        }
 
-    <div class="mesas-container">
-      <div class="mesa" data-mesa="1" onclick="abrirModal(this)"><span>Mesa 1</span><div class="estado">Libre</div></div>
-      <div class="mesa" data-mesa="2" onclick="abrirModal(this)"><span>Mesa 2</span><div class="estado">Libre</div></div>
-      <div class="mesa" data-mesa="3" onclick="abrirModal(this)"><span>Mesa 3</span><div class="estado">Libre</div></div>
-      <div class="mesa" data-mesa="4" onclick="abrirModal(this)"><span>Mesa 4</span><div class="estado">Libre</div></div>
-      <div class="mesa" data-mesa="5" onclick="abrirModal(this)"><span>Mesa 5</span><div class="estado">Libre</div></div>
-    </div>
+        switch (perfil.rol) {
+          case 'super_admin':
+            window.location.replace('panel_maestro.html');
+            break;
+          case 'admin':
+            window.location.replace('panel_local.html');
+            break;
+          case 'mesero':
+            window.location.replace('terminal.html');
+            break;
+          case 'bartender':
+            window.location.replace('barra.html');
+            break;
+          default:
+            window.location.replace('login.html');
+        }
+      } catch (err) {
+        console.error('Error al redirigir:', err);
+        window.location.replace('login.html');
+      }
+    }
 
-    <!-- El Modal Pedido -->
-    <div class="modal-overlay" id="modalPedido">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 id="tituloModal">Mesa X</h2>
-          <button class="btn-cerrar" onclick="cerrarModal()">&times;</button>
-        </div>
-        
-        <p>Seleccionar consumo y cantidad:</p>
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-          <select class="input-pedido" id="selectProducto" style="margin-bottom: 0; flex-grow: 1;">
-            <option value="">Cargando productos...</option>
-          </select>
-        </div>
-        
-        <button class="btn-agregar" onclick="agregarProducto()">Agregar a la cuenta</button>
-
-        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-          <h4>Cuenta actual:</h4>
-          <ul id="listaCuenta">
-            <li style="color: #7f8c8d; font-style: italic;">Sin productos aún</li>
-          </ul>
-          <h3 style="text-align: right; color: #2c3e50;">Total: $<span id="totalCuenta">0.00</span></h3>          
-          <button class="btn-pagar" id="btnPagar" onclick="pagarCuenta()">💳 Cobrar y Liberar Mesa</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modales de Agregar y Modificar Producto se quedan igual... -->
-    <!-- Agregar Producto -->
-    <div class="modal-overlay" id="modalNuevoProducto">
-      <div class="modal-content">
-        <!-- ... contenido original ... -->
-      </div>
-    </div>
-
-    <!-- Modificar Producto -->
-    <div class="modal-overlay" id="modalModificarProducto">
-      <div class="modal-content">
-        <!-- ... contenido original ... -->
-      </div>
-    </div>
-
-    <!-- CAMBIO 4: Cambiamos app.js a tipo módulo para que pueda importar Supabase -->
-    <script type="module" src="./js/controllers/app.js"></script>    
-  </body>
+    redirigir();
+  </script>
+</body>
 </html>
