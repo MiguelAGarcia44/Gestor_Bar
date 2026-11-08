@@ -1,105 +1,100 @@
-# 🚀 04 - Guía de Despliegue y Ejecución
+# 🚀 04 - Guía de Despliegue y Testing Local
 
-Este documento explica cómo levantar el entorno de desarrollo local y cómo desplegar el frontend y las Edge Functions de **Gestor Bar** a producción.
+Este documento explica cómo levantar el entorno completo de desarrollo local (Frontend + Supabase Local con Colima + Edge Functions + Base de Datos + Dashboard Studio) sin depender de permisos en la nube.
 
 ---
 
-## 💻 1. Ejecución en Entorno Local
+## 🛠️ 1. Stack de Testing Local Completo (Colima + Supabase CLI)
 
-Al tratarse de una arquitectura **MPA estática con ES Modules nativos**, no necesitas instalar paquetes de Node.js ni compilar para probar cambios en el frontend.
+Para desarrollar y probar libremente sin romper la base de datos de producción ni depender de permisos de administración en Supabase Cloud, utilizamos **Colima + Supabase Local**:
 
-### Opción A: VS Code con Live Server (Recomendada para Frontend)
-1. Instala la extensión **Live Server** de *Ritwick Dey* en VS Code.
-2. Abre la raíz del proyecto `bar_manager`.
-3. Haz clic en el botón **"Go Live"** en la esquina inferior derecha de VS Code (puerto por defecto `5501` o `5500`).
-4. Abre tu navegador en:
-   ```text
-   http://127.0.0.1:5501/
-   # o directamente:
-   http://127.0.0.1:5501/views/auth/login.html
-   ```
-
-### Opción B: Servidor HTTP con Node o Python
-Si prefieres usar la terminal:
+### Prerrequisitos (Mac):
 ```bash
-# Con npx (Node.js)
-npx serve . -p 5501
-
-# O con Python 3
-python3 -m http.server 5501
+brew install colima docker docker-compose
 ```
 
-> [!IMPORTANT]
-> **No abras los archivos HTML con doble clic directo (`file:///`)**, ya que los módulos JavaScript (`import { createClient } from ...`) son bloqueados por las políticas de seguridad CORS del navegador. Siempre debe ejecutarse sobre un servidor HTTP local (`http://127.0.0.1:...` o `http://localhost:...`).
-
----
-
-## ⚡ 2. Trabajo con Edge Functions de Supabase
-
-Las funciones de backend se encuentran en `supabase/functions/` y corren sobre el runtime de **Deno**.
-
-### Prerrequisitos:
-- Docker instalado y corriendo (si deseas emular Supabase en local).
-- Supabase CLI:
-  ```bash
-  npm install -g supabase
-  ```
-
-### Probar Edge Functions en local:
+### Paso a paso para arrancar el entorno:
 ```bash
-# Iniciar la infraestructura de Supabase local (Postgres, Auth, Edge Functions)
+# 1. Iniciar Colima (motor ligero de contenedores)
+colima start --cpu 2 --memory 4
+
+# 2. Iniciar la infraestructura de Supabase local
 npx supabase start
-
-# Servir una función específica en local
-npx supabase functions serve registrar_empleado --no-verify-jwt
 ```
 
-### Desplegar Edge Functions a la nube de Supabase:
+### ¿Qué levanta `npx supabase start` automáticamente?
+Al ejecutar este comando se inicializan 10 servicios en segundo plano:
+- **Base de Datos PostgreSQL 17**: `127.0.0.1:54322`
+- **API Gateway (Kong)**: `http://127.0.0.1:54321`
+- **Edge Functions (Deno Runtime)**: `http://127.0.0.1:54321/functions/v1/<nombre>`
+- **Supabase Studio (Dashboard Web Local)**: `http://127.0.0.1:54323`
+- **Servidor de Emails de Prueba (Mailpit)**: `http://127.0.0.1:54324`
+
+---
+
+## 🗄️ 2. Base de Datos y Cuentas de Prueba Listas (Seed)
+
+El proyecto incluye una migración inicial (`supabase/migrations/`) y un archivo de semillas (`supabase/seed.sql`). Para resetear la base de datos local y cargar datos de prueba:
+
 ```bash
-# 1. Iniciar sesión en Supabase CLI
-npx supabase login
+npx supabase db reset
+```
 
-# 2. Vincular el proyecto con el Project Ref
-npx supabase link --project-ref evkespjlgxdeofkafbjz
+### 👤 Usuarios de Prueba Pre-creados (Contraseña para todos: `Test1234*`):
 
-# 3. Desplegar una o todas las funciones
-npx supabase functions deploy registrar_empleado
-npx supabase functions deploy registrar_cliente
-npx supabase functions deploy editar_cliente
-npx supabase functions deploy editar_empleado
-npx supabase functions deploy cambiar_password
+| Rol | Correo Electrónico | Contraseña | Vista asignada |
+|---|---|---|---|
+| **`admin`** (Dueño de Bar) | `admin@bar.com` | `Test1234*` | `views/crm/panel_local.html` |
+| **`mesero`** | `mesero@bar.com` | `Test1234*` | `views/pos/terminal.html` |
+| **`bartender`** | `bartender@bar.com` | `Test1234*` | `views/kds/barra.html` |
+| **`super_admin`** (SaaS) | `superadmin@bar.com` | `Test1234*` | `views/saas/panel_maestro.html` |
+
+*El seed también incluye el establecimiento de prueba **"Bar La Oveja Negra (Local Demo)"**, 4 mesas y 6 productos en el menú.*
+
+---
+
+## ⚡ 3. Edge Functions en Local
+
+Cuando ejecutas `npx supabase start`, el contenedor de **Edge Functions ya está activo** y sirve automáticamente las funciones de `supabase/functions/`:
+- `http://127.0.0.1:54321/functions/v1/registrar_empleado`
+- `http://127.0.0.1:54321/functions/v1/registrar_cliente`
+- `http://127.0.0.1:54321/functions/v1/editar_cliente`
+- `http://127.0.0.1:54321/functions/v1/editar_empleado`
+- `http://127.0.0.1:54321/functions/v1/cambiar_password`
+
+> [!NOTE]
+> **¿Por qué `npx supabase functions serve` parece "quedarse quieto"?**
+> `functions serve` es un servidor web (daemon). Cuando muestra `Serving functions on http://127.0.0.1:54321/...`, no se ha congelado ni muerto; está escuchando peticiones HTTP en tiempo real y mostrando los logs de ejecución de cada función. Para detenerlo, presiona `Ctrl + C`.
+
+---
+
+## 🖥️ 4. Ejecución del Frontend en Local
+
+1. Con Colima y Supabase corriendo, abre VS Code.
+2. Haz clic en **"Go Live"** en la barra inferior (puerto `5501`).
+3. El frontend (`js/core/config.js`) **detecta automáticamente** que estás en `127.0.0.1` o `localhost` y se conecta directamente a tu stack local de Supabase.
+4. Navega a `http://127.0.0.1:5501/` e inicia sesión con cualquiera de las cuentas de prueba.
+
+---
+
+## 🛑 5. Apagar los Servicios para Ahorrar Batería
+
+Cuando termines tu jornada de desarrollo:
+```bash
+# 1. Detiene los contenedores de Supabase
+npx supabase stop
+
+# 2. Apaga la máquina virtual de Colima
+colima stop
 ```
 
 ---
 
-## 🌐 3. Despliegue del Frontend a Producción
+## ☁️ 6. Preguntas Frecuentes y Despliegue en la Nube
 
-El frontend puede desplegarse en cualquier servicio de hosting de archivos estáticos:
+### ¿Por qué falló `npx supabase link --project-ref ...`?
+`supabase link` conecta la CLI de tu computadora con un proyecto específico en **Supabase Cloud**. Requiere que el creador del proyecto en la nube te añada como colaborador/administrador en el dashboard de Supabase.
+**No necesitas `supabase link` para programar o probar localmente.** Tu entorno con Colima es 100% autónomo.
 
-### A. Vercel (Recomendado)
-1. Conecta el repositorio de GitHub en el dashboard de Vercel.
-2. En **Framework Preset**, selecciona **Other** (o Static).
-3. En **Root Directory**, deja `./`.
-4. En **Build Command**, déjalo vacío.
-5. Haz clic en **Deploy**. Cada push a la rama `main` desplegará automáticamente.
-
-### B. Cloudflare Pages / Netlify
-1. Conecta el repositorio de GitHub.
-2. Directorio de publicación: `/` (la raíz del proyecto).
-3. Comando de build: Ninguno (vacío).
-4. Guardar y desplegar.
-
-### C. GitHub Pages
-1. Ve a **Settings > Pages** en el repositorio de GitHub.
-2. En **Source**, selecciona `Deploy from a branch`.
-3. Selecciona la rama `main` y la carpeta `/ (root)`.
-4. Guarda los cambios. Tu sitio estará en `https://miguelagarcia44.github.io/Gestor_Bar/views/auth/login.html`.
-
----
-
-## 🛡️ 4. Lista de Verificación Pre-Despliegue (Checklist)
-
-- [ ] Todas las rutas a scripts (`<script type="module" src="...">`) y hojas de estilo usan rutas relativas válidas.
-- [ ] No existen referencias a archivos inexistentes (como el antiguo `app.js`).
-- [ ] Los dominios de producción están dados de alta en la configuración CORS de Supabase (`Authentication > URL Configuration > Redirect URLs`).
-- [ ] Las políticas RLS de PostgreSQL están activas y probadas para que ninguna sucursal vea datos ajenos.
+### ¿Cómo desplegar el Frontend a Producción?
+El frontend puede desplegarse en cualquier servicio de hosting estático (Vercel, Netlify o GitHub Pages) apuntando al directorio raíz `./`. Al desplegarse en un dominio público, [config.js](../js/core/config.js) conmuta automáticamente a la base de datos de producción en Supabase Cloud.
