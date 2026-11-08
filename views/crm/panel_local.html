@@ -19,7 +19,7 @@
     </style>
 
     <script type="module">
-        import { protegerRuta } from './js/core/guardian.js';
+        import { protegerRuta } from '../../js/core/guardian.js';
         protegerRuta(['admin']).then(datosUsuario => {
             if (datosUsuario) {
                 document.body.classList.add('autorizado');
@@ -40,11 +40,11 @@
                 </div>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button onclick="window.open('barra.html', '_blank')" style="background: #f39c12; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                <button onclick="window.open('../kds/barra.html', '_blank')" style="background: #f39c12; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                     Ir a Barra
                 </button>
                 
-                <button onclick="window.open('terminal.html', '_blank')" style="background: #27ae60; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                <button onclick="window.open('../pos/terminal.html', '_blank')" style="background: #27ae60; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                     Ir a Terminal
                 </button>
                 <button class="btn-salir" id="btnCerrarSesion">Cerrar Sesión</button>
@@ -122,6 +122,6 @@
             <button onclick="document.getElementById('modalModificarProducto').style.display='none'" class="btn-accion" style="background-color: #ecf0f1; color: #7f8c8d;">Cancelar</button>
         </div>
     </div>
-    <script type="module" src="./js/controllers/local.js"></script>
+    <script type="module" src="../../js/controllers/local.js"></script>
 </body>
 </html>
