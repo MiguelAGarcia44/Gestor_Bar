@@ -1,0 +1,26 @@
+# Entorno y Secretos
+.env
+.env.local
+.env.*.local
+*.env
+
+# Archivos de Sistema Operativo
+.DS_Store
+Thumbs.db
+
+# Logs y Caché
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Directorios de editores (opcionales)
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Dependencias (para cuando se incorpore Vite / npm)
+node_modules/
+dist/
+build/
+.temp/

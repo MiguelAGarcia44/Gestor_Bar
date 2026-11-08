@@ -1,7 +1,5 @@
 // conexion.js
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+import { CONFIG } from './config.js';
 
-const supabaseUrl = 'https://evkespjlgxdeofkafbjz.supabase.co';
-const supabaseKey = 'sb_publishable_WUsoToc9MSaja54-6Sksog_WAKHQidy';
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
