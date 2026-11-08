@@ -151,7 +151,7 @@ function calcularMinutosTranscurridos(fechaString) {
 
 btnCerrarSesion.addEventListener('click', async () => {
     await supabase.auth.signOut();
-    window.location.replace('login.html');
+    window.location.replace('../auth/login.html');
 });
 
 // Arrancar cuando el guardián inyecte los datos

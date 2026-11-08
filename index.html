@@ -51,7 +51,7 @@
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          window.location.replace('login.html');
+          window.location.replace('views/auth/login.html');
           return;
         }
 
@@ -63,29 +63,29 @@
 
         if (error || !perfil || !perfil.activo) {
           await supabase.auth.signOut();
-          window.location.replace('login.html');
+          window.location.replace('views/auth/login.html');
           return;
         }
 
         switch (perfil.rol) {
           case 'super_admin':
-            window.location.replace('panel_maestro.html');
+            window.location.replace('views/saas/panel_maestro.html');
             break;
           case 'admin':
-            window.location.replace('panel_local.html');
+            window.location.replace('views/crm/panel_local.html');
             break;
           case 'mesero':
-            window.location.replace('terminal.html');
+            window.location.replace('views/pos/terminal.html');
             break;
           case 'bartender':
-            window.location.replace('barra.html');
+            window.location.replace('views/kds/barra.html');
             break;
           default:
-            window.location.replace('login.html');
+            window.location.replace('views/auth/login.html');
         }
       } catch (err) {
         console.error('Error al redirigir:', err);
-        window.location.replace('login.html');
+        window.location.replace('views/auth/login.html');
       }
     }
 

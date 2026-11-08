@@ -367,7 +367,7 @@ window.guardarModificacion = async function(event) {
 
 document.getElementById('btnCerrarSesionTerminal')?.addEventListener('click', async () => {
     await supabase.auth.signOut();
-    window.location.replace('login.html');
+    window.location.replace('../auth/login.html');
 });
 
 const intervalo = setInterval(() => {

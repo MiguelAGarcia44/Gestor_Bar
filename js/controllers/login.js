@@ -43,16 +43,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         const rol = perfil.rol;
         switch (rol) {
             case 'super_admin':
-                window.location.href = 'panel_maestro.html'; // Tu panel global
+                window.location.href = '../saas/panel_maestro.html';
                 break;
             case 'admin':
-                window.location.href = 'panel_local.html'; // Panel del dueño del bar
+                window.location.href = '../crm/panel_local.html';
                 break;
             case 'mesero':
-                window.location.href = 'terminal.html'; // El Punto de Venta operativo
+                window.location.href = '../pos/terminal.html';
                 break;
             case 'bartender':
-                window.location.href = 'barra.html'; // Panel del dueño del bar
+                window.location.href = '../kds/barra.html';
                 break;    
             default:
                 throw new Error('Rol no reconocido por el sistema.');

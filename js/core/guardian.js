@@ -1,13 +1,19 @@
 // guardian.js
 import { supabase } from './conexion.js';
 
+function irALogin() {
+    const rutaLogin = window.location.pathname.includes('/views/')
+        ? '../auth/login.html'
+        : './views/auth/login.html';
+    window.location.replace(rutaLogin);
+}
+
 export async function protegerRuta(rolesPermitidos) {
     // 1. Revisamos si hay una sesión activa en el navegador
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-        // No está logueado, lo mandamos al login
-        window.location.replace('login.html');
+        irALogin();
         return null;
     }
 
@@ -15,23 +21,21 @@ export async function protegerRuta(rolesPermitidos) {
     const userId = session.user.id;
     const { data: perfil, error } = await supabase
         .from('usuarios')
-        .select('*') // <-- CAMBIO 1: Seleccionamos todo (nombre, negocio_id, rol)
+        .select('*')
         .eq('id', userId)
         .single();
 
     if (error || !perfil) {
-        window.location.replace('login.html');
+        irALogin();
         return null;
     }
 
     // 3. Validamos si su rol está en la lista de permitidos para esta página
     if (!rolesPermitidos.includes(perfil.rol)) {
         alert('Acceso denegado: No tienes el nivel de permisos requerido.');
-        // Lo regresamos al login o a una página segura
-        window.location.replace('login.html');
+        irALogin();
         return null;
     }
 
-    // CAMBIO 2: Devolvemos el "perfil" con toda la info de la tabla usuarios
     return perfil;
 }

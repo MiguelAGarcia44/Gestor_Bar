@@ -25,18 +25,18 @@ cp .env.example .env
 
 ### 3. Ejecutar
 Abre el proyecto con VS Code y haz clic en **"Go Live"** en la barra inferior (o usa tu servidor local preferido).
-Navega a: `http://127.0.0.1:5501/login.html`
+Navega a: `http://127.0.0.1:5501/` (o directamente a `views/auth/login.html`)
 
 ---
 
 ## 👥 Roles del Sistema
 
-| Rol | Vista Principal | Responsabilidad |
+| Rol | Vista Modular | Responsabilidad |
 |---|---|---|
-| `super_admin` | `panel_maestro.html` | Administración global SaaS: alta de sucursales, licenciamiento y credenciales maestras. |
-| `admin` | `panel_local.html` | Dueño/Gerente de sucursal: catálogo de productos, precios y alta de personal operativo. |
-| `mesero` | `terminal.html` | Punto de venta: plano de mesas, toma de pedidos, modificación de cantidades y cobro de cuentas. |
-| `bartender` | `barra.html` | Kitchen Display System (KDS): monitor en tiempo real de órdenes pendientes (FIFO) y despacho de bebidas. |
+| `super_admin` | `views/saas/panel_maestro.html` | Administración global SaaS: alta de sucursales, licenciamiento y credenciales maestras. |
+| `admin` | `views/crm/panel_local.html` | Dueño/Gerente de sucursal: catálogo de productos, precios y alta de personal operativo. |
+| `mesero` | `views/pos/terminal.html` | Punto de venta: plano de mesas, toma de pedidos, modificación de cantidades y cobro de cuentas. |
+| `bartender` | `views/kds/barra.html` | Kitchen Display System (KDS): monitor en tiempo real de órdenes pendientes (FIFO) y despacho de bebidas. |
 
 ---
 

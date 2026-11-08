@@ -39,7 +39,7 @@
     </style>
 
     <script type="module">
-        import { protegerRuta } from './js/core/guardian.js';
+        import { protegerRuta } from '../../js/core/guardian.js';
         
         // SOLO admin y bartender pueden entrar aquí
         protegerRuta(['admin', 'bartender']).then(datosUsuario => {
@@ -76,6 +76,6 @@
             </div>
         </div>
     </div>
-    <script type="module" src="./js/controllers/barra.js"></script>
+    <script type="module" src="../../js/controllers/barra.js"></script>
 </body>
 </html>
