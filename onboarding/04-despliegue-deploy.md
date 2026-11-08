@@ -14,7 +14,9 @@ Al tratarse de una arquitectura **MPA estática con ES Modules nativos**, no nec
 3. Haz clic en el botón **"Go Live"** en la esquina inferior derecha de VS Code (puerto por defecto `5501` o `5500`).
 4. Abre tu navegador en:
    ```text
-   http://127.0.0.1:5501/login.html
+   http://127.0.0.1:5501/
+   # o directamente:
+   http://127.0.0.1:5501/views/auth/login.html
    ```
 
 ### Opción B: Servidor HTTP con Node o Python
@@ -91,7 +93,7 @@ El frontend puede desplegarse en cualquier servicio de hosting de archivos está
 1. Ve a **Settings > Pages** en el repositorio de GitHub.
 2. En **Source**, selecciona `Deploy from a branch`.
 3. Selecciona la rama `main` y la carpeta `/ (root)`.
-4. Guarda los cambios. Tu sitio estará en `https://miguelagarcia44.github.io/Gestor_Bar/login.html`.
+4. Guarda los cambios. Tu sitio estará en `https://miguelagarcia44.github.io/Gestor_Bar/views/auth/login.html`.
 
 ---
 

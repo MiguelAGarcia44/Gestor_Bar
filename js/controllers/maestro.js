@@ -150,7 +150,7 @@ form.addEventListener('submit', async (e) => {
 
 btnCerrarSesion.addEventListener('click', async () => {
     await supabase.auth.signOut();
-    window.location.href = 'login.html';
+    window.location.replace('../auth/login.html');
 });
 
 // --- INICIALIZACIÓN DIRECTA DEL PANEL MAESTRO ---

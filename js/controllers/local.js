@@ -199,7 +199,7 @@ window.cambiarEstatusEmpleado = async function(id, nuevoEstado) {
 
 document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
     await supabase.auth.signOut();
-    window.location.href = 'login.html';
+    window.location.replace('../auth/login.html');
 });
 
 const intervalo = setInterval(() => {
