@@ -1,0 +1,18 @@
+{
+  "name": "bar_manager",
+  "version": "1.0.0",
+  "description": "Sistema integral de punto de venta (POS) y CRM operativo para la gestión ágil de mesas, comandas en tiempo real para barra y administración de catálogo y personal para bares y restaurantes.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MiguelAGarcia44/Gestor_Bar.git"
+  },
+  "keywords": [],
+  "dependencies": {
+    "lucide": "^1.70.0"
+  }
+}
