@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor Bar - Preview de Paleta & Design System</title>
+  <link rel="stylesheet" href="./assets/css/design-system.css">
+  <script src="./assets/vendor/lucide.min.js"></script>
+  <style>
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .color-swatch-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .swatch-color {
+      height: 80px;
+      display: flex;
+      align-items: flex-end;
+      padding: 0.5rem 0.75rem;
+      font-size: var(--text-xs);
+      font-weight: 700;
+    }
+    .swatch-info {
+      padding: 0.75rem;
+    }
+    .swatch-title {
+      font-size: var(--text-sm);
+      font-weight: 700;
+      margin: 0 0 0.25rem 0;
+    }
+    .swatch-var {
+      font-size: var(--text-2xs);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .swatch-contrast {
+      margin-top: 0.5rem;
+      font-size: var(--text-2xs);
+      display: inline-block;
+      padding: 0.15rem 0.4rem;
+      border-radius: var(--radius-xs);
+      background: var(--bg-elevated);
+      color: var(--color-success);
+      font-weight: 700;
+    }
+    .section-block {
+      margin-bottom: 2.5rem;
+    }
+    .section-title {
+      font-size: var(--text-xl);
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- Header de Vista Previa -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="header-brand-icon">
+          <i data-lucide="wine"></i>
+        </div>
+        <span>Gestor Bar <span style="font-size:var(--text-xs); color:var(--accent-gold); font-weight:600;">[Design System Preview]</span></span>
+      </div>
+
+      <div class="header-actions">
+        <!-- Switch de Tema Claro / Oscuro -->
+        <button id="btnThemeToggle" class="btn btn-secondary btn-sm" title="Cambiar tema">
+          <span id="themeIcon"><i data-lucide="sun"></i></span>
+          <span id="themeText">Modo Claro</span>
+        </button>
+
+        <a href="./index.html" class="btn btn-primary btn-sm">
+          <i data-lucide="layout-grid"></i>
+          <span>Ir a la App</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- 1. Paleta de Colores en Vivo -->
+      <section class="section-block">
+        <h2 class="section-title">
+          <i data-lucide="palette"></i>
+          1. Paleta de Colores & Superficies Minimalistas
+        </h2>
+        <p style="color:var(--text-secondary); margin-top:0;">
+          Diseñada para iluminación de bar nocturno con alto contraste WCAG AAA. Presiona el botón <strong>"Modo Claro / Oscuro"</strong> arriba para verificar la transición instantánea.
+        </p>
+
+        <div class="palette-grid">
+          <!-- Lienzo Base -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--bg-base); color:var(--text-primary); border-bottom:1px solid var(--border-subtle);">
+              Fondo Base
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Lienzo Principal</div>
+              <div class="swatch-var">--bg-base</div>
+              <div class="swatch-contrast">✓ Ratio 15.2:1 (AAA)</div>
+            </div>
+          </div>
+
+          <!-- Superficie Tarjeta -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--bg-surface); color:var(--text-primary); border-bottom:1px solid var(--border-subtle);">
+              Superficie
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Tarjetas & Headers</div>
+              <div class="swatch-var">--bg-surface</div>
+              <div class="swatch-contrast">✓ Elevación sutil</div>
+            </div>
+          </div>
+
+          <!-- Elevado / Modales -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--bg-elevated); color:var(--text-primary); border-bottom:1px solid var(--border-subtle);">
+              Elevado
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Modales & Popovers</div>
+              <div class="swatch-var">--bg-elevated</div>
+              <div class="swatch-contrast">✓ Máxima legibilidad</div>
+            </div>
+          </div>
+
+          <!-- Acento Ámbar / Coctelería -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--accent-gold); color:#0F172A;">
+              Ámbar Coctel
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Acento Bar / Retrasos</div>
+              <div class="swatch-var">--accent-gold (#F59E0B)</div>
+              <div class="swatch-contrast">✓ Cálido lounge</div>
+            </div>
+          </div>
+
+          <!-- Verde Esmeralda Cobro -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--color-success); color:#FFFFFF;">
+              Cobro & Éxito
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Cobrar y Liberar</div>
+              <div class="swatch-var">--color-success (#10B981)</div>
+              <div class="swatch-contrast">✓ Acción Positiva</div>
+            </div>
+          </div>
+
+          <!-- Rojo Carmesí Ocupado -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--color-danger); color:#FFFFFF;">
+              Alerta & Ocupado
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Mesas con comensales</div>
+              <div class="swatch-var">--color-danger (#EF4444)</div>
+              <div class="swatch-contrast">✓ Alerta Visual Inmediata</div>
+            </div>
+          </div>
+
+          <!-- Azul Primario -->
+          <div class="color-swatch-card">
+            <div class="swatch-color" style="background:var(--accent-primary); color:#FFFFFF;">
+              Azul Primario
+            </div>
+            <div class="swatch-info">
+              <div class="swatch-title">Navegación & Acciones</div>
+              <div class="swatch-var">--accent-primary (#3B82F6)</div>
+              <div class="swatch-contrast">✓ Pestañas Activas</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Catálogo de Botones & Estados -->
+      <section class="section-block">
+        <h2 class="section-title">
+          <i data-lucide="mouse-pointer-click"></i>
+          2. Botones, Badges & Accesibilidad (Touch Target 44px)
+        </h2>
+        <div class="card">
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+            <button class="btn btn-primary">
+              <i data-lucide="plus-circle"></i>
+              <span>Botón Primario</span>
+            </button>
+            <button class="btn btn-secondary">
+              <i data-lucide="pencil"></i>
+              <span>Botón Secundario</span>
+            </button>
+            <button class="btn btn-success" id="btnDemoCobrar">
+              <i data-lucide="receipt"></i>
+              <span>Cobrar y Liberar ($240)</span>
+            </button>
+            <button class="btn btn-danger">
+              <i data-lucide="alert-triangle"></i>
+              <span>Cerrar sin cobrar</span>
+            </button>
+            <button class="btn btn-ghost btn-icon" title="Cerrar sesión">
+              <i data-lucide="log-out"></i>
+            </button>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; border-top:1px solid var(--border-subtle); padding-top:1rem;">
+            <span style="font-size:var(--text-xs); color:var(--text-secondary); font-weight:700;">Badges de Estado:</span>
+            <span class="mesa-badge-estado mesa-badge-libre">
+              <i data-lucide="check" style="width:12px; height:12px;"></i> Libre
+            </span>
+            <span class="mesa-badge-estado mesa-badge-ocupada">
+              <i data-lucide="clock" style="width:12px; height:12px;"></i> Ocupada
+            </span>
+            <div class="user-badge">
+              <i data-lucide="user" style="width:14px; height:14px;"></i>
+              <span>Carlos Mesero</span>
+              <span class="role-tag">MESERO</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Rediseño de Dropdown con Buscador Integrado -->
+      <section class="section-block">
+        <h2 class="section-title">
+          <i data-lucide="chevrons-up-down"></i>
+          3. Dropdown Rediseñado (Búsqueda, Checkmarks y Teclado)
+        </h2>
+        <p style="color:var(--text-secondary); margin-top:0;">
+          Reemplaza el selector nativo gris de 1995 por un componente moderno con búsqueda en vivo, chevrons animados y soporte de flechas de teclado.
+        </p>
+
+        <div class="card" style="max-width: 460px;">
+          <label class="form-label">Seleccionar Coctel o Bebida para Comanda</label>
+          <div id="demoDropdownContainer"></div>
+          <div id="dropdownSelectionOutput" style="margin-top:0.75rem; font-size:var(--text-sm); color:var(--accent-gold); font-weight:600;">
+            Ningún producto seleccionado
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Grid de Mesas Responsivo -->
+      <section class="section-block">
+        <h2 class="section-title">
+          <i data-lucide="layout-grid"></i>
+          4. Piso del Bar (Mesas Responsivas - No se Amontonan)
+        </h2>
+        <div class="mesas-grid">
+          <!-- Mesa Libre -->
+          <div class="mesa-card" onclick="alert('Clic en Mesa 1 (Libre)')">
+            <button class="btn-mesa-eliminar" title="Ocultar Mesa" onclick="event.stopPropagation(); alert('Ocultar mesa');">
+              <i data-lucide="x" style="width:14px; height:14px;"></i>
+            </button>
+            <div class="mesa-etiqueta">Mesa 1</div>
+            <span class="mesa-badge-estado mesa-badge-libre">Libre</span>
+          </div>
+
+          <!-- Mesa Ocupada -->
+          <div class="mesa-card ocupada" id="cardMesaDemo">
+            <button class="btn-mesa-eliminar" title="Ocultar Mesa" onclick="event.stopPropagation(); alert('No se puede ocultar con cuenta abierta');">
+              <i data-lucide="x" style="width:14px; height:14px;"></i>
+            </button>
+            <div class="mesa-etiqueta">Mesa 2</div>
+            <span class="mesa-badge-estado mesa-badge-ocupada">Ocupada ($240)</span>
+          </div>
+
+          <!-- Mesa Libre 3 -->
+          <div class="mesa-card">
+            <div class="mesa-etiqueta">Barra 1</div>
+            <span class="mesa-badge-estado mesa-badge-libre">Libre</span>
+          </div>
+
+          <!-- Mesa Libre 4 -->
+          <div class="mesa-card">
+            <div class="mesa-etiqueta">Terraza A</div>
+            <span class="mesa-badge-estado mesa-badge-libre">Libre</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Modal Accesible con Verificación de Escape y Saldo Pendiente -->
+      <section class="section-block">
+        <h2 class="section-title">
+          <i data-lucide="layers"></i>
+          5. Modal Accesible (Tecla Escape & Alerta "Cerrar sin Cobrar")
+        </h2>
+        <div class="card">
+          <p style="margin-top:0; color:var(--text-secondary);">
+            Abre el modal de demostración. Intenta cerrarlo con la tecla <span class="kbd">Esc</span> o el botón de cerrar. Notarás que al tener saldo pendiente te advertirá antes de salir. En pantallas móviles, el toque fuera del diálogo está bloqueado para no perder pedidos en marcha.
+          </p>
+          <button class="btn btn-primary" id="btnAbrirModalDemo">
+            <i data-lucide="external-link"></i>
+            <span>Abrir Modal de Mesa #2 (Con Cuenta Activa)</span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal de Demostración -->
+    <div id="modalDemo" class="modal-backdrop" style="display:none;">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title">
+            <i data-lucide="receipt"></i>
+            <span>Mesa 2 - Cuenta Activa</span>
+          </h3>
+          <button class="modal-close" data-modal-close title="Cerrar modal (Esc)">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-alert-box">
+            <i data-lucide="alert-triangle" style="color:var(--color-warning);"></i>
+            <div>
+              <strong>Cuenta abierta con comensales</strong>
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-top:2px;">
+                Los productos solicitados fueron enviados a barra para preparación.
+              </div>
+            </div>
+          </div>
+
+          <h4 style="margin:0 0 0.5rem 0; font-size:var(--text-sm); color:var(--text-secondary);">Detalle del Pedido:</h4>
+          <ul class="cuenta-items-list">
+            <li class="cuenta-item">
+              <div>
+                <strong>2x Margarita Clásica</strong>
+                <div style="font-size:var(--text-xs); color:var(--text-muted);">Enviado a barra (Preparado)</div>
+              </div>
+              <span style="font-weight:700;">$180.00</span>
+            </li>
+            <li class="cuenta-item">
+              <div>
+                <strong>1x Cerveza Corona</strong>
+                <div style="font-size:var(--text-xs); color:var(--text-muted);">Entregado</div>
+              </div>
+              <span style="font-weight:700;">$60.00</span>
+            </li>
+          </ul>
+
+          <div class="cuenta-total-row">
+            <span style="font-size:var(--text-base); font-weight:700;">Total a Cobrar:</span>
+            <span class="cuenta-total-amount">$240.00</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger btn-sm" id="btnCerrarSinCobrarDemo">
+            <i data-lucide="x"></i>
+            <span>Cerrar sin cobrar</span>
+          </button>
+          <button type="button" class="btn btn-success btn-lg" id="btnCobrarDemo" style="flex:1;">
+            <i data-lucide="receipt"></i>
+            <span>Cobrar y Liberar Mesa</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lógica Interactiva del Preview -->
+  <script type="module">
+    import { initIcons } from './js/core/icons.js';
+    import { CustomSelect } from './js/components/dropdown.js';
+    import { openModal, forceCloseModal } from './js/components/modal.js';
+
+    // 1. Inicializar Iconos Lucide
+    initIcons();
+
+    // 2. Control de Modo Claro / Oscuro
+    const btnThemeToggle = document.getElementById('btnThemeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeText = document.getElementById('themeText');
+    const htmlEl = document.documentElement;
+
+    // Cargar preferencia guardada (default dark)
+    const temaGuardado = localStorage.getItem('GESTOR_BAR_THEME') || 'dark';
+    aplicarTema(temaGuardado);
+
+    btnThemeToggle.addEventListener('click', () => {
+      const temaActual = htmlEl.getAttribute('data-theme') || 'dark';
+      const nuevoTema = temaActual === 'dark' ? 'light' : 'dark';
+      aplicarTema(nuevoTema);
+    });
+
+    function aplicarTema(tema) {
+      htmlEl.setAttribute('data-theme', tema);
+      localStorage.setItem('GESTOR_BAR_THEME', tema);
+      if (tema === 'dark') {
+        themeText.textContent = 'Modo Claro';
+        themeIcon.innerHTML = '<i data-lucide="sun"></i>';
+      } else {
+        themeText.textContent = 'Modo Oscuro';
+        themeIcon.innerHTML = '<i data-lucide="moon"></i>';
+      }
+      initIcons(btnThemeToggle);
+    }
+
+    // 3. Inicializar Dropdown con buscador
+    const catalogoBebidas = [
+      { value: 'p1', label: 'Margarita Clásica', price: '90.00', subtitle: 'Tequila, Cointreau, Limón' },
+      { value: 'p2', label: 'Mojito Cubano', price: '85.00', subtitle: 'Ron blanco, Menta, Hierbabuena' },
+      { value: 'p3', label: 'Cerveza Corona (355ml)', price: '60.00', subtitle: 'Cerveza clara lager' },
+      { value: 'p4', label: 'Whisky Sour', price: '110.00', subtitle: 'Bourbon, Limón, Jarabe' },
+      { value: 'p5', label: 'Tequila Don Julio 70 (Shot)', price: '140.00', subtitle: 'Tequila cristalino' },
+      { value: 'p6', label: 'Gin Tonic Hendrick\'s', price: '125.00', subtitle: 'Ginebra, Pepino, Tónica' },
+      { value: 'p7', label: 'Agua Mineral Topo Chico', price: '45.00', subtitle: 'Refresco / Sin alcohol' }
+    ];
+
+    const dropdown = new CustomSelect('#demoDropdownContainer', {
+      placeholder: '-- Elige una bebida del menú --',
+      searchPlaceholder: 'Escribe para filtrar (ej. Tequila, Mojito)...',
+      options: catalogoBebidas,
+      icon: 'glass-water',
+      onSelect: (item) => {
+        document.getElementById('dropdownSelectionOutput').textContent =
+          `✓ Seleccionado: ${item.label} ($${item.price})`;
+      }
+    });
+
+    // 4. Modal Accesible con comprobación de saldo pendiente
+    const modalDemo = document.getElementById('modalDemo');
+    const btnAbrirModalDemo = document.getElementById('btnAbrirModalDemo');
+    const cardMesaDemo = document.getElementById('cardMesaDemo');
+
+    function abrirModalMesa2() {
+      openModal(modalDemo, {
+        hasPendingBalance: () => true, // Esta mesa tiene saldo sin cobrar
+        getBalanceAmount: () => '240.00',
+        preventMobileBackdropClose: true
+      });
+      initIcons(modalDemo);
+    }
+
+    btnAbrirModalDemo.addEventListener('click', abrirModalMesa2);
+    cardMesaDemo.addEventListener('click', abrirModalMesa2);
+
+    document.getElementById('btnCobrarDemo').addEventListener('click', () => {
+      alert('¡Cobro exitoso de $240.00! Mesa liberada.');
+      forceCloseModal(modalDemo);
+    });
+
+    document.getElementById('btnCerrarSinCobrarDemo').addEventListener('click', () => {
+      const confirmacion = confirm('⚠️ La mesa continuará con la cuenta abierta. ¿Seguro que deseas salir?');
+      if (confirmacion) {
+        forceCloseModal(modalDemo);
+      }
+    });
+
+    document.getElementById('btnDemoCobrar').addEventListener('click', () => {
+      alert('Demostración de cobro y liberación exitosa.');
+    });
+  </script>
+</body>
+</html>
