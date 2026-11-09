@@ -1,69 +1,80 @@
+// js/controllers/login.js
 import { supabase } from '../core/conexion.js';
+import { router, RUTAS } from '../core/router.js';
+import { extraerMensajeError } from '../core/errors.js';
 
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+export function inicializarLogin(onLoginSuccess = () => {}) {
+  const form = document.getElementById('loginForm');
+  if (!form) return;
+
+  // Evitar duplicar listeners
+  form.onsubmit = async (e) => {
     e.preventDefault();
-    
-    const email = document.getElementById('email').value;
+
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     const btnSubmit = document.getElementById('btnSubmit');
     const errorMensaje = document.getElementById('errorMensaje');
 
-    // Restaurar estado visual
+    // Estado visual de carga
     btnSubmit.disabled = true;
-    btnSubmit.textContent = 'Verificando...';
+    btnSubmit.innerHTML = '<span>Verificando credenciales...</span>';
     errorMensaje.style.display = 'none';
 
     try {
-        // 1. Validar credenciales en Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
-        });
+      // 1. Validar credenciales en Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-        if (authError) throw authError;
+      if (authError) throw authError;
 
-        // 2. Obtener el perfil y rol del usuario desde la tabla pública
-        const userId = authData.user.id;
-        const { data: perfil, error: perfilError } = await supabase
-            .from('usuarios')
-            .select('rol, activo')
-            .eq('id', userId)
-            .single(); // Exigimos un solo resultado
+      // 2. Obtener el perfil y rol del usuario
+      const userId = authData.user.id;
+      const { data: perfil, error: perfilError } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-        if (perfilError || !perfil) {
-            throw new Error('No se encontró el perfil de usuario en la base de datos.');
-        }
+      if (perfilError || !perfil) {
+        throw new Error('No se encontró el perfil de usuario en la base de datos.');
+      }
 
-        if (!perfil.activo) {
-            await supabase.auth.signOut(); // Destruimos la sesión si está dado de baja
-            throw new Error('Esta cuenta ha sido desactivada.');
-        }
+      if (!perfil.activo) {
+        await supabase.auth.signOut();
+        throw new Error('Esta cuenta ha sido desactivada por el administrador.');
+      }
 
-        // 3. Redirección táctica basada en el rol
-        const rol = perfil.rol;
-        switch (rol) {
-            case 'super_admin':
-                window.location.href = '../saas/panel_maestro.html';
-                break;
-            case 'admin':
-                window.location.href = '../crm/panel_local.html';
-                break;
-            case 'mesero':
-                window.location.href = '../pos/terminal.html';
-                break;
-            case 'bartender':
-                window.location.href = '../kds/barra.html';
-                break;    
-            default:
-                throw new Error('Rol no reconocido por el sistema.');
-        }
+      window.usuarioActual = perfil;
+      router.configurarPestanasPorRol(perfil);
+      onLoginSuccess(perfil);
+
+      // 3. Redirección limpia basada en el rol
+      switch (perfil.rol) {
+        case 'super_admin':
+          router.navegar(RUTAS.MAESTRO);
+          break;
+        case 'admin':
+          router.navegar(RUTAS.TERMINAL);
+          break;
+        case 'mesero':
+          router.navegar(RUTAS.TERMINAL);
+          break;
+        case 'bartender':
+          router.navegar(RUTAS.BARRA);
+          break;
+        default:
+          throw new Error('Rol no reconocido por el sistema.');
+      }
 
     } catch (error) {
-        errorMensaje.textContent = error.message === 'Invalid login credentials' 
-            ? 'Correo o contraseña incorrectos.' 
-            : error.message;
-        errorMensaje.style.display = 'block';
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Ingresar';
+      errorMensaje.textContent = await extraerMensajeError(error);
+      errorMensaje.style.display = 'block';
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>Iniciar Sesión</span>';
     }
-});
+  };
+}
