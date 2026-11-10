@@ -17,12 +17,33 @@ export async function inicializarPanel() {
 
   negocioIdActual = usuario.negocio_id;
 
+  const tituloNegocio = document.getElementById('tituloNegocio');
+  const identificadorUsuario = document.getElementById('identificadorUsuario');
+
+  if (identificadorUsuario) {
+    const rolFormateado = usuario.rol.charAt(0).toUpperCase() + usuario.rol.slice(1);
+    identificadorUsuario.textContent = `${usuario.nombre_completo} (${rolFormateado})`;
+  }
+
+  try {
+    const { data: negocio, error: errorNegocio } = await supabase
+      .from('negocios').select('nombre_comercial').eq('id', negocioIdActual).single();
+
+    if (errorNegocio) throw errorNegocio;
+    if (tituloNegocio) tituloNegocio.textContent = `🏢 ${negocio.nombre_comercial}`;
+  } catch (error) {
+    if (tituloNegocio) tituloNegocio.textContent = '❌ Error al cargar datos del negocio';
+  }
+
   bindLocalEvents();
   await Promise.all([cargarEmpleados(), obtenerCatalogoProductos()]);
+
+  // --- Inicializar el reporte de ventas con el día de hoy ---
+  configurarFechasPorDefecto();
+  await generarReporteVentas();
 }
 
 async function obtenerCatalogoProductos() {
-  // El negocio puede no estar inicializado si se abre el modal desde /terminal
   if (!negocioIdActual && window.usuarioActual) negocioIdActual = window.usuarioActual.negocio_id;
 
   const { data, error } = await supabase
@@ -106,7 +127,6 @@ export async function cargarEmpleados() {
 }
 
 function bindLocalEvents() {
-  // Inicializar CustomSelect para Rol de Empleado
   const rolContainer = document.getElementById('contenedorRolEmpleado');
   if (rolContainer && !dropdownRolEmpleado) {
     dropdownRolEmpleado = new CustomSelect(rolContainer, {
@@ -135,7 +155,6 @@ function bindLocalEvents() {
       const rolEmpleado = (dropdownRolEmpleado ? dropdownRolEmpleado.getValue() : null) || document.getElementById('rolEmpleado').value;
       const btnSubmit = form.querySelector('button[type="submit"]');
 
-      // Validación previa: no invocar la Edge Function con datos incompletos
       if (!nombreEmpleado || !emailEmpleado || !passwordEmpleado || !rolEmpleado) {
         showToast('Completa nombre, correo, contraseña y puesto antes de registrar.', 'warning');
         return;
@@ -174,9 +193,20 @@ function bindLocalEvents() {
       }
     };
   }
+
+  const btnCerrarSesion = document.getElementById('btnCerrarSesion');
+  if (btnCerrarSesion) {
+    btnCerrarSesion.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    });
+  }
 }
 
-// Modales de Menú y Empleados
+// ==========================================
+// MÓDULO DE PRODUCTOS E INVENTARIO
+// ==========================================
+
 window.abrirModalNuevoProducto = function() {
   if (!negocioIdActual && window.usuarioActual) negocioIdActual = window.usuarioActual.negocio_id;
   const modal = document.getElementById('modalNuevoProducto');
@@ -237,7 +267,6 @@ window.abrirModalModificarProducto = async function() {
     }
   }
 
-  // Limpiar campos previos
   document.getElementById('modificarNombreProd').value = '';
   document.getElementById('modificarPrecioProd').value = '';
 
@@ -251,7 +280,8 @@ function cargarDatosModificarProd(prodId) {
   if (producto) {
     document.getElementById('modificarNombreProd').value = producto.nombre;
     document.getElementById('modificarPrecioProd').value = producto.precio_actual;
-    document.getElementById('selectModificarProd').value = prodId;
+    const select = document.getElementById('selectModificarProd');
+    if (select) select.value = prodId;
   }
 }
 
@@ -331,4 +361,139 @@ window.confirmarCambioEstatusEmpleado = function(id, nombre, nuevoEstado) {
       await cargarEmpleados();
     }
   });
+};
+
+// ==========================================
+// MÓDULO DE REPORTES Y VENTAS (DASHBOARD)
+// ==========================================
+
+function configurarFechasPorDefecto() {
+    const inputDesde = document.getElementById('filtroDesde');
+    const inputHasta = document.getElementById('filtroHasta');
+    if (!inputDesde || !inputHasta) return;
+
+    const hoy = new Date();
+    const hoyString = hoy.toLocaleDateString('en-CA'); 
+    inputDesde.value = hoyString;
+    inputHasta.value = hoyString;
+}
+
+function obtenerRangoOperativoISO(fechaDesde, fechaHasta) {
+    const [yearD, monthD, dayD] = fechaDesde.split('-').map(Number);
+    const [yearH, monthH, dayH] = fechaHasta.split('-').map(Number);
+
+    const inicio = new Date(yearD, monthD - 1, dayD, 6, 0, 0);
+    const fin = new Date(yearH, monthH - 1, dayH + 1, 5, 59, 59);
+
+    return { 
+        inicioISO: inicio.toISOString(), 
+        finISO: fin.toISOString() 
+    };
+}
+
+window.generarReporteVentas = async function() {
+    const elDesde = document.getElementById('filtroDesde');
+    const elHasta = document.getElementById('filtroHasta');
+    if (!elDesde || !elHasta) return;
+
+    const fechaDesde = elDesde.value;
+    const fechaHasta = elHasta.value;
+
+    if(!fechaDesde || !fechaHasta) {
+        showToast("Por favor selecciona un rango de fechas válido.", "warning"); 
+        return;
+    }
+
+    const { inicioISO, finISO } = obtenerRangoOperativoISO(fechaDesde, fechaHasta);
+
+    try {
+        const { data: cuentas } = await supabase.from('cuentas')
+            .select('id, total')
+            .eq('negocio_id', negocioIdActual)
+            .eq('estado', 'cerrada')
+            .gte('fecha_cierre', inicioISO)
+            .lte('fecha_cierre', finISO);
+
+        let totalVendido = 0;
+        let idsCuentas = [];
+        
+        if (cuentas && cuentas.length > 0) {
+            totalVendido = cuentas.reduce((sum, c) => sum + Number(c.total), 0);
+            idsCuentas = cuentas.map(c => c.id);
+        }
+
+        const resTotal = document.getElementById('resumenTotal');
+        const resCuentas = document.getElementById('resumenCuentas');
+        if (resTotal) resTotal.textContent = `$${totalVendido.toFixed(2)}`;
+        if (resCuentas) resCuentas.textContent = `${cuentas ? cuentas.length : 0} cuentas cerradas`;
+
+        if (idsCuentas.length === 0) {
+            const resFav = document.getElementById('resumenFavorito');
+            const resFavCant = document.getElementById('resumenFavoritoCant');
+            const resEst = document.getElementById('resumenEstancado');
+            const resEstCant = document.getElementById('resumenEstancadoCant');
+            const listTop = document.getElementById('listaTopProductos');
+
+            if (resFav) resFav.textContent = 'Sin ventas';
+            if (resFavCant) resFavCant.textContent = '-';
+            if (resEst) resEst.textContent = 'Revisar inventario';
+            if (resEstCant) resEstCant.textContent = '-';
+            if (listTop) listTop.innerHTML = '<li style="color: var(--text-muted); padding: 10px;">No hay datos en este periodo.</li>';
+            return;
+        }
+
+        const { data: comandas } = await supabase.from('comandas')
+            .select('producto_id, cantidad')
+            .in('cuenta_id', idsCuentas);
+
+        const cantidadesPorProducto = {};
+        if (comandas) {
+            comandas.forEach(c => {
+                if (!cantidadesPorProducto[c.producto_id]) cantidadesPorProducto[c.producto_id] = 0;
+                cantidadesPorProducto[c.producto_id] += c.cantidad;
+            });
+        }
+
+        let ranking = [];
+        listaProductosGlobal.forEach(prod => {
+            ranking.push({
+                nombre: prod.nombre,
+                vendidos: cantidadesPorProducto[prod.id] || 0 
+            });
+        });
+
+        ranking.sort((a, b) => b.vendidos - a.vendidos);
+
+        if (ranking.length > 0) {
+            const favorito = ranking[0];
+            const resFav = document.getElementById('resumenFavorito');
+            const resFavCant = document.getElementById('resumenFavoritoCant');
+            if (resFav) resFav.textContent = favorito.nombre;
+            if (resFavCant) resFavCant.textContent = `${favorito.vendidos} unidades`;
+
+            const estancado = ranking[ranking.length - 1];
+            const resEst = document.getElementById('resumenEstancado');
+            const resEstCant = document.getElementById('resumenEstancadoCant');
+            if (resEst) resEst.textContent = estancado.nombre;
+            if (resEstCant) resEstCant.textContent = estancado.vendidos === 0 ? '¡0 unidades vendidas!' : `${estancado.vendidos} unidades`;
+        }
+
+        const listaTop = document.getElementById('listaTopProductos');
+        if (listaTop) {
+            listaTop.innerHTML = '';
+            const top5 = ranking.slice(0, 5);
+            top5.forEach((item, index) => {
+                const medalla = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+                listaTop.innerHTML += `
+                    <li style="display: flex; justify-content: space-between; background: var(--bg-surface, #f9f9f9); padding: 10px 15px; border-radius: var(--radius-sm, 4px); border: 1px solid var(--border-subtle, #eee);">
+                        <span>${medalla} <strong>${item.nombre}</strong></span>
+                        <span style="font-weight: bold; color: var(--color-success, #27ae60);">${item.vendidos} unidades</span>
+                    </li>
+                `;
+            });
+        }
+
+    } catch (error) {
+        notificarError(error, "Error al generar reporte de ventas");
+    }
 };
