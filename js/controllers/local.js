@@ -343,11 +343,15 @@ window.confirmarCambioEstatusEmpleado = function(id, nombre, nuevoEstado) {
 // ==========================================
 
 function configurarFechasPorDefecto() {
-    const hoy = new Date();
-    const opciones = { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' };
-    // Forzamos el formato YYYY-MM-DD
-    const hoyPartes = new Intl.DateTimeFormat('en-CA', opciones).formatToParts(hoy);
-    const hoyString = `${hoyPartes.find(p => p.type === 'year').value}-${hoyPartes.find(p => p.type === 'month').value}-${hoyPartes.find(p => p.type === 'day').value}`;
+    // Obtenemos la fecha exacta en México
+    const fechaMexico = new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" });
+    const fechaObj = new Date(fechaMexico);
+
+    // Formateamos estrictamente a YYYY-MM-DD para evitar fallos de navegador
+    const año = fechaObj.getFullYear();
+    const mes = String(fechaObj.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaObj.getDate()).padStart(2, '0');
+    const hoyString = `${año}-${mes}-${dia}`;
     
     document.getElementById('filtroDesde').value = hoyString;
     document.getElementById('filtroHasta').value = hoyString;
@@ -357,14 +361,17 @@ function obtenerRangoOperativoISO(fechaDesde, fechaHasta) {
     const [yearD, monthD, dayD] = fechaDesde.split('-').map(Number);
     const [yearH, monthH, dayH] = fechaHasta.split('-').map(Number);
 
-    // Inicio: 06:00 AM del día 'Desde'
-    const inicio = new Date(yearD, monthD - 1, dayD, 6, 0, 0);
-    // Fin: 05:59:59 AM del día siguiente al 'Hasta'
-    const fin = new Date(yearH, monthH - 1, dayH + 1, 5, 59, 59);
+    // 1. Hora local real (06:00 AM y 05:59 AM del día siguiente)
+    const inicioReal = new Date(yearD, monthD - 1, dayD, 6, 0, 0);
+    const finReal = new Date(yearH, monthH - 1, dayH + 1, 5, 59, 59);
+
+    // 2. Aplicamos la misma compensación que usa la Terminal para que coincida con la BD
+    const inicioCompensado = new Date(inicioReal.getTime() - (inicioReal.getTimezoneOffset() * 60000));
+    const finCompensado = new Date(finReal.getTime() - (finReal.getTimezoneOffset() * 60000));
 
     return { 
-        inicioISO: inicio.toISOString(), 
-        finISO: fin.toISOString() 
+        inicioISO: inicioCompensado.toISOString(), 
+        finISO: finCompensado.toISOString() 
     };
 }
 
@@ -380,7 +387,6 @@ window.generarReporteVentas = async function() {
     const { inicioISO, finISO } = obtenerRangoOperativoISO(fechaDesde, fechaHasta);
 
     try {
-        // 1. Obtener Cuentas Cerradas en el rango (usando la variable global negocioIdActual)
         const { data: cuentas, error: errCuentas } = await supabase.from('cuentas')
             .select('id, total')
             .eq('negocio_id', negocioIdActual)
@@ -394,7 +400,8 @@ window.generarReporteVentas = async function() {
         let idsCuentas = [];
         
         if (cuentas && cuentas.length > 0) {
-            totalVendido = cuentas.reduce((sum, c) => sum + Number(c.total), 0);
+            // Aseguramos que el total se sume como número, ignorando vacíos o nulos
+            totalVendido = cuentas.reduce((sum, c) => sum + (Number(c.total) || 0), 0);
             idsCuentas = cuentas.map(c => c.id);
         }
 
@@ -410,14 +417,12 @@ window.generarReporteVentas = async function() {
             return;
         }
 
-        // 2. Obtener Comandas despachadas
         const { data: comandas, error: errComandas } = await supabase.from('comandas')
             .select('producto_id, cantidad')
             .in('cuenta_id', idsCuentas);
 
         if (errComandas) throw errComandas;
 
-        // 3. Agrupar conteo de productos
         const cantidadesPorProducto = {};
         if (comandas) {
             comandas.forEach(c => {
@@ -426,7 +431,6 @@ window.generarReporteVentas = async function() {
             });
         }
 
-        // 4. Cruzar con Catálogo Global (listaProductosGlobal ya fue poblada por obtenerCatalogoProductos)
         let ranking = [];
         listaProductosGlobal.forEach(prod => {
             ranking.push({
@@ -437,7 +441,6 @@ window.generarReporteVentas = async function() {
 
         ranking.sort((a, b) => b.vendidos - a.vendidos);
 
-        // 5. Poblar tarjetas Extremas
         const favorito = ranking[0];
         document.getElementById('resumenFavorito').textContent = favorito.nombre;
         document.getElementById('resumenFavoritoCant').textContent = `${favorito.vendidos} uds`;
@@ -446,7 +449,6 @@ window.generarReporteVentas = async function() {
         document.getElementById('resumenEstancado').textContent = estancado.nombre;
         document.getElementById('resumenEstancadoCant').textContent = estancado.vendidos === 0 ? '¡0 uds vendidas!' : `${estancado.vendidos} uds`;
 
-        // 6. Poblar Tabla Top 5
         const listaTop = document.getElementById('listaTopProductos');
         listaTop.innerHTML = '';
         
@@ -463,11 +465,17 @@ window.generarReporteVentas = async function() {
                 </li>
             `;
         });
-        
-        // Inicializar iconos en el top (en caso de usar lucide en lugar de emojis a futuro)
-        initIcons(listaTop);
 
     } catch (error) {
-        notificarError(error, "Hubo un error al procesar el reporte de ventas.");
+        console.error("Falla en reporte:", error);
+        showToast("Hubo un error al procesar el reporte de ventas.", "danger");
     }
 };
+
+// Conectamos el botón de filtrar asegurando que el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    const btnFiltrar = document.getElementById('btnFiltrarVentas');
+    if(btnFiltrar) {
+        btnFiltrar.addEventListener('click', window.generarReporteVentas);
+    }
+});
