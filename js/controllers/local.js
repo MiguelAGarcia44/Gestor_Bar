@@ -18,7 +18,12 @@ export async function inicializarPanel() {
   negocioIdActual = usuario.negocio_id;
 
   bindLocalEvents();
+  // Se cargan primero catálogo y empleados
   await Promise.all([cargarEmpleados(), obtenerCatalogoProductos()]);
+
+  // INICIO DEL DASHBOARD
+  configurarFechasPorDefecto();
+  await window.generarReporteVentas();
 }
 
 async function obtenerCatalogoProductos() {
@@ -331,4 +336,138 @@ window.confirmarCambioEstatusEmpleado = function(id, nombre, nuevoEstado) {
       await cargarEmpleados();
     }
   });
+};
+
+// ==========================================
+// MÓDULO DE REPORTES Y VENTAS (DASHBOARD)
+// ==========================================
+
+function configurarFechasPorDefecto() {
+    const hoy = new Date();
+    const opciones = { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' };
+    // Forzamos el formato YYYY-MM-DD
+    const hoyPartes = new Intl.DateTimeFormat('en-CA', opciones).formatToParts(hoy);
+    const hoyString = `${hoyPartes.find(p => p.type === 'year').value}-${hoyPartes.find(p => p.type === 'month').value}-${hoyPartes.find(p => p.type === 'day').value}`;
+    
+    document.getElementById('filtroDesde').value = hoyString;
+    document.getElementById('filtroHasta').value = hoyString;
+}
+
+function obtenerRangoOperativoISO(fechaDesde, fechaHasta) {
+    const [yearD, monthD, dayD] = fechaDesde.split('-').map(Number);
+    const [yearH, monthH, dayH] = fechaHasta.split('-').map(Number);
+
+    // Inicio: 06:00 AM del día 'Desde'
+    const inicio = new Date(yearD, monthD - 1, dayD, 6, 0, 0);
+    // Fin: 05:59:59 AM del día siguiente al 'Hasta'
+    const fin = new Date(yearH, monthH - 1, dayH + 1, 5, 59, 59);
+
+    return { 
+        inicioISO: inicio.toISOString(), 
+        finISO: fin.toISOString() 
+    };
+}
+
+window.generarReporteVentas = async function() {
+    const fechaDesde = document.getElementById('filtroDesde').value;
+    const fechaHasta = document.getElementById('filtroHasta').value;
+
+    if(!fechaDesde || !fechaHasta) {
+        showToast("Por favor selecciona un rango de fechas válido.", "warning"); 
+        return;
+    }
+
+    const { inicioISO, finISO } = obtenerRangoOperativoISO(fechaDesde, fechaHasta);
+
+    try {
+        // 1. Obtener Cuentas Cerradas en el rango (usando la variable global negocioIdActual)
+        const { data: cuentas, error: errCuentas } = await supabase.from('cuentas')
+            .select('id, total')
+            .eq('negocio_id', negocioIdActual)
+            .eq('estado', 'cerrada')
+            .gte('fecha_cierre', inicioISO)
+            .lte('fecha_cierre', finISO);
+
+        if (errCuentas) throw errCuentas;
+
+        let totalVendido = 0;
+        let idsCuentas = [];
+        
+        if (cuentas && cuentas.length > 0) {
+            totalVendido = cuentas.reduce((sum, c) => sum + Number(c.total), 0);
+            idsCuentas = cuentas.map(c => c.id);
+        }
+
+        document.getElementById('resumenTotal').textContent = `$${totalVendido.toFixed(2)}`;
+        document.getElementById('resumenCuentas').textContent = `${cuentas ? cuentas.length : 0} cuentas cerradas`;
+
+        if (idsCuentas.length === 0) {
+            document.getElementById('resumenFavorito').textContent = 'Sin ventas';
+            document.getElementById('resumenFavoritoCant').textContent = '-';
+            document.getElementById('resumenEstancado').textContent = 'Revisar inventario';
+            document.getElementById('resumenEstancadoCant').textContent = '-';
+            document.getElementById('listaTopProductos').innerHTML = '<li style="color: var(--text-muted); font-size: var(--text-sm); font-style: italic;">No hay datos en este periodo.</li>';
+            return;
+        }
+
+        // 2. Obtener Comandas despachadas
+        const { data: comandas, error: errComandas } = await supabase.from('comandas')
+            .select('producto_id, cantidad')
+            .in('cuenta_id', idsCuentas);
+
+        if (errComandas) throw errComandas;
+
+        // 3. Agrupar conteo de productos
+        const cantidadesPorProducto = {};
+        if (comandas) {
+            comandas.forEach(c => {
+                if (!cantidadesPorProducto[c.producto_id]) cantidadesPorProducto[c.producto_id] = 0;
+                cantidadesPorProducto[c.producto_id] += c.cantidad;
+            });
+        }
+
+        // 4. Cruzar con Catálogo Global (listaProductosGlobal ya fue poblada por obtenerCatalogoProductos)
+        let ranking = [];
+        listaProductosGlobal.forEach(prod => {
+            ranking.push({
+                nombre: prod.nombre,
+                vendidos: cantidadesPorProducto[prod.id] || 0
+            });
+        });
+
+        ranking.sort((a, b) => b.vendidos - a.vendidos);
+
+        // 5. Poblar tarjetas Extremas
+        const favorito = ranking[0];
+        document.getElementById('resumenFavorito').textContent = favorito.nombre;
+        document.getElementById('resumenFavoritoCant').textContent = `${favorito.vendidos} uds`;
+
+        const estancado = ranking[ranking.length - 1];
+        document.getElementById('resumenEstancado').textContent = estancado.nombre;
+        document.getElementById('resumenEstancadoCant').textContent = estancado.vendidos === 0 ? '¡0 uds vendidas!' : `${estancado.vendidos} uds`;
+
+        // 6. Poblar Tabla Top 5
+        const listaTop = document.getElementById('listaTopProductos');
+        listaTop.innerHTML = '';
+        
+        const top5 = ranking.slice(0, 5);
+        top5.forEach((item, index) => {
+            const medalla = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+            listaTop.innerHTML += `
+                <li style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); padding: 10px 15px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                    <span style="color: var(--text-primary); font-size: var(--text-sm);">
+                        <span style="margin-right: 8px;">${medalla}</span> 
+                        <strong>${item.nombre}</strong>
+                    </span>
+                    <span style="font-weight: 700; color: var(--color-success); font-size: var(--text-sm);">${item.vendidos} uds</span>
+                </li>
+            `;
+        });
+        
+        // Inicializar iconos en el top (en caso de usar lucide en lugar de emojis a futuro)
+        initIcons(listaTop);
+
+    } catch (error) {
+        notificarError(error, "Hubo un error al procesar el reporte de ventas.");
+    }
 };
