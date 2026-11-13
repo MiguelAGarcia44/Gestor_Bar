@@ -1,179 +1,176 @@
+// js/controllers/maestro.js
 import { supabase } from '../core/conexion.js';
+import { iconSvg, initIcons } from '../core/icons.js';
+import { openModal, forceCloseModal, mostrarConfirmacion } from '../components/modal.js';
+import { showToast } from '../components/toast.js';
+import { notificarError } from '../core/errors.js';
 
-const form = document.getElementById('formNuevoCliente');
-const mensajeEstado = document.getElementById('mensajeEstado');
-const btnCerrarSesion = document.getElementById('btnCerrarSesion');
-const listaNegocios = document.getElementById('listaNegocios');
+export async function inicializarMaestro() {
+  await cargarNegocios();
+  bindMaestroEvents();
+}
 
-// --- FUNCIONES PARA EL MODAL DE EDICIÓN ---
-window.abrirModalEditar = function(id, nombreBar, nombreAdmin) {
-    document.getElementById('modalEditId').value = id;
-    document.getElementById('editNombreBar').value = nombreBar;
-    document.getElementById('editNombreAdmin').value = nombreAdmin;
-    document.getElementById('editPassword').value = '';
-    document.getElementById('modalEditMensaje').textContent = '';
-    document.getElementById('modalEditarCliente').style.display = 'flex';
-};
+export async function cargarNegocios() {
+  const listaNegocios = document.getElementById('listaNegocios');
+  if (!listaNegocios) return;
 
-window.cerrarModalEditar = function() {
-    document.getElementById('modalEditarCliente').style.display = 'none';
+  try {
+    const { data: negocios, error } = await supabase
+      .from('negocios')
+      .select(`
+        id, nombre_comercial, estatus_suscripcion, fecha_registro,
+        usuarios ( nombre_completo, rol )
+      `)
+      .neq('nombre_comercial', 'Administración Central SaaS')
+      .order('fecha_registro', { ascending: false });
+
+    if (error) throw error;
+    listaNegocios.innerHTML = '';
+
+    if (!negocios || negocios.length === 0) {
+      listaNegocios.innerHTML = '<li style="color: var(--text-muted); padding: 1rem; text-align: center;">Aún no hay clientes registrados en la plataforma.</li>';
+      return;
+    }
+
+    negocios.forEach(negocio => {
+      const li = document.createElement('li');
+      li.style.padding = '0.875rem 1rem';
+      li.style.borderBottom = '1px solid var(--border-subtle)';
+      li.style.display = 'flex';
+      li.style.justifyContent = 'space-between';
+      li.style.alignItems = 'center';
+      li.style.gap = '0.75rem';
+
+      const isActivo = negocio.estatus_suscripcion;
+      const admin = negocio.usuarios ? negocio.usuarios.find(u => u.rol === 'admin') : null;
+      const nombreAdmin = admin ? admin.nombre_completo : 'Sin Admin';
+
+      li.innerHTML = `
+        <div>
+          <div style="font-weight: 700; color: var(--text-primary); font-size: var(--text-base);">${negocio.nombre_comercial}</div>
+          <div style="font-size: var(--text-xs); color: var(--text-muted); display:flex; align-items:center; gap:0.375rem; margin-top:2px;">
+            ${iconSvg('user', { size: 12 })} <span>Dueño: ${nombreAdmin}</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: var(--text-xs); color: ${isActivo ? 'var(--color-success)' : 'var(--color-danger)'}; background: ${isActivo ? 'var(--color-success-subtle)' : 'var(--color-danger-subtle)'}; padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); font-weight: 700;">
+            ${isActivo ? 'Activo' : 'Inactivo'}
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="window.abrirModalEditarCliente('${negocio.id}', '${negocio.nombre_comercial}', '${nombreAdmin}')">
+            ${iconSvg('pencil', { size: 14 })}
+            <span>Editar</span>
+          </button>
+          <button class="btn ${isActivo ? 'btn-danger' : 'btn-success'} btn-sm" onclick="window.cambiarEstatusNegocio('${negocio.id}', ${!isActivo})">
+            ${iconSvg(isActivo ? 'shield-alert' : 'shield-check', { size: 14 })}
+            <span>${isActivo ? 'Dar de baja' : 'Reactivar'}</span>
+          </button>
+        </div>
+      `;
+
+      listaNegocios.appendChild(li);
+    });
+
+    initIcons(listaNegocios);
+  } catch (error) {
+    listaNegocios.innerHTML = `<li style="color: var(--color-danger); padding: 1rem;">${iconSvg('x-circle', { size: 16 })} Error al cargar cartera de clientes.</li>`;
+    notificarError(error, 'Error al cargar la cartera de clientes');
+  }
+}
+
+function bindMaestroEvents() {
+  const form = document.getElementById('formNuevoCliente');
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const nombreComercial = document.getElementById('nombreComercial').value.trim();
+      const nombreAdmin = document.getElementById('nombreAdmin').value.trim();
+      const emailAdmin = document.getElementById('emailAdmin').value.trim();
+      const passwordAdmin = document.getElementById('passwordAdmin').value;
+      const btnSubmit = form.querySelector('button[type="submit"]');
+
+      // Validación previa: no invocar la Edge Function con datos incompletos
+      if (!nombreComercial || !nombreAdmin || !emailAdmin || !passwordAdmin) {
+        showToast('Completa todos los campos del establecimiento antes de continuar.', 'warning');
+        return;
+      }
+      if (passwordAdmin.length < 6) {
+        showToast('La contraseña debe contener al menos 6 caracteres.', 'warning');
+        return;
+      }
+
+      if (btnSubmit) btnSubmit.disabled = true;
+
+      try {
+        const { error } = await supabase.functions.invoke('registrar_cliente', {
+          body: { nombreComercial, nombreAdmin, emailAdmin, passwordAdmin }
+        });
+
+        if (error) throw error;
+
+        showToast(`¡Establecimiento ${nombreComercial} creado con éxito!`, 'success');
+        form.reset();
+        await cargarNegocios();
+      } catch (err) {
+        notificarError(err, 'No se pudo dar de alta el establecimiento');
+      } finally {
+        if (btnSubmit) btnSubmit.disabled = false;
+      }
+    };
+  }
+}
+
+window.abrirModalEditarCliente = function(id, nombreBar, nombreAdmin) {
+  document.getElementById('modalEditId').value = id;
+  document.getElementById('editNombreBar').value = nombreBar;
+  document.getElementById('editNombreAdmin').value = nombreAdmin;
+  document.getElementById('editPassword').value = '';
+  const modal = document.getElementById('modalEditarCliente');
+  openModal(modal);
+  initIcons(modal);
 };
 
 window.guardarEdicionCliente = async function() {
-    const negocioId = document.getElementById('modalEditId').value;
-    const nuevoNombreBar = document.getElementById('editNombreBar').value;
-    const nuevoNombreAdmin = document.getElementById('editNombreAdmin').value;
-    const nuevaPassword = document.getElementById('editPassword').value;
-    const modalMensaje = document.getElementById('modalEditMensaje');
+  const negocioId = document.getElementById('modalEditId').value;
+  const nuevoNombreBar = document.getElementById('editNombreBar').value.trim();
+  const nuevoNombreAdmin = document.getElementById('editNombreAdmin').value.trim();
+  const nuevaPassword = document.getElementById('editPassword').value.trim();
 
-    modalMensaje.style.color = '#f39c12';
-    modalMensaje.textContent = '⏳ Actualizando datos...';
+  if (!nuevoNombreBar || !nuevoNombreAdmin) {
+    showToast('El nombre del establecimiento y del dueño son obligatorios.', 'warning');
+    return;
+  }
+  if (nuevaPassword && nuevaPassword.length < 6) {
+    showToast('La nueva contraseña debe contener al menos 6 caracteres.', 'warning');
+    return;
+  }
 
-    try {
-        const { error } = await supabase.functions.invoke('editar_cliente', {
-            body: { negocioId, nuevoNombreBar, nuevoNombreAdmin, nuevaPassword }
-        });
-
-        if (error) throw error;
-
-        modalMensaje.style.color = '#2ecc71';
-        modalMensaje.textContent = '✅ ¡Cambios guardados!';
-        setTimeout(() => {
-            cerrarModalEditar();
-            cargarNegocios(); 
-        }, 1500);
-        
-    } catch (error) {
-        modalMensaje.style.color = '#e74c3c';
-        modalMensaje.textContent = '❌ Error al editar cliente.';
-    }
+  try {
+    const { error } = await supabase.functions.invoke('editar_cliente', {
+      body: { negocioId, nuevoNombreBar, nuevoNombreAdmin, nuevaPassword }
+    });
+    if (error) throw error;
+    showToast('Datos del cliente actualizados.', 'success');
+    forceCloseModal(document.getElementById('modalEditarCliente'));
+    await cargarNegocios();
+  } catch (err) {
+    notificarError(err, 'Error al editar cliente');
+  }
 };
 
-// --- FUNCIÓN DE ESTATUS ---
-window.cambiarEstatus = async function(id, nuevoEstado) {
-    try {
-        const { error } = await supabase.from('negocios').update({ estatus_suscripcion: nuevoEstado }).eq('id', id);
-        if (error) throw error;
-        cargarNegocios();
-    } catch (error) {
-        alert('Hubo un error al cambiar el estatus.');
+window.cambiarEstatusNegocio = function(id, nuevoEstado) {
+  mostrarConfirmacion({
+    titulo: nuevoEstado ? 'Reactivar Establecimiento' : 'Desactivar Establecimiento',
+    mensaje: `¿Confirmas que deseas ${nuevoEstado ? 'reactivar' : 'dar de baja'} la suscripción de este establecimiento?`,
+    tipo: nuevoEstado ? 'success' : 'danger',
+    btnAceptarTexto: nuevoEstado ? 'Reactivar' : 'Dar de Baja',
+    onConfirm: async () => {
+      const { error } = await supabase.from('negocios').update({ estatus_suscripcion: nuevoEstado }).eq('id', id);
+      if (error) {
+        notificarError(error, 'No se pudo actualizar la suscripción');
+        return;
+      }
+      showToast(`Establecimiento ${nuevoEstado ? 'reactivado' : 'dado de baja'}.`, 'info');
+      await cargarNegocios();
     }
+  });
 };
-
-async function cargarNegocios() {
-    try {
-        const { data: negocios, error } = await supabase
-            .from('negocios')
-            .select(`
-                id, nombre_comercial, fecha_registro, estatus_suscripcion,
-                usuarios ( nombre_completo, rol )
-            `)
-            .neq('nombre_comercial', 'Administración Central SaaS')
-            .order('fecha_registro', { ascending: false });
-
-        if (error) throw error;
-
-        listaNegocios.innerHTML = '';
-        if (negocios.length === 0) {
-            listaNegocios.innerHTML = '<li style="color: #7f8c8d; padding: 10px;">Aún no hay clientes registrados.</li>';
-            return;
-        }
-
-        negocios.forEach(negocio => {
-            const li = document.createElement('li');
-            li.style.padding = '12px';
-            li.style.borderBottom = '1px solid #eee';
-            li.style.display = 'flex';
-            li.style.justifyContent = 'space-between';
-            li.style.alignItems = 'center';
-            
-            const fecha = new Date(negocio.fecha_registro).toLocaleDateString();
-            const isActivo = negocio.estatus_suscripcion;
-            
-            const admin = negocio.usuarios.find(u => u.rol === 'admin');
-            const nombreAdmin = admin ? admin.nombre_completo : 'Sin Admin';
-
-            li.innerHTML = `
-                <div>
-                    <strong> ${negocio.nombre_comercial}</strong>
-                    <div style="font-size: 0.85em; color: #7f8c8d; margin-top: 4px;">👤 Dueño: ${nombreAdmin}</div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: ${isActivo ? '#e8f8f5' : '#fdedec'}; color: ${isActivo ? '#2ecc71' : '#e74c3c'}; padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">
-                        ${isActivo ? '✅ Activo' : '❌ Inactivo'}
-                    </span>
-                    
-                    <button onclick="abrirModalEditar('${negocio.id}', '${negocio.nombre_comercial}', '${nombreAdmin}')" 
-                            style="background: #f39c12; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 0.85em; font-weight: bold;" title="Editar Cliente">
-                        Editar
-                    </button>
-                    
-                    <button onclick="cambiarEstatus('${negocio.id}', ${!isActivo})" 
-                            style="background: ${isActivo ? '#e74c3c' : '#2ecc71'}; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 0.85em; font-weight: bold;">
-                        ${isActivo ? 'Dar de baja' : 'Reactivar'}
-                    </button>
-                </div>
-            `;
-            listaNegocios.appendChild(li);
-        });
-    } catch (error) {
-        listaNegocios.innerHTML = '<li style="color: #e74c3c;">❌ Error al cargar la lista de clientes.</li>';
-    }
-}
-
-// --- CREACIÓN DE CLIENTES NUEVOS ---
-form.addEventListener('submit', async (e) => {
-    e.preventDefault(); 
-    const nombreComercial = document.getElementById('nombreComercial').value;
-    const nombreAdmin = document.getElementById('nombreAdmin').value;
-    const emailAdmin = document.getElementById('emailAdmin').value;
-    const passwordAdmin = document.getElementById('passwordAdmin').value;
-
-    mensajeEstado.style.color = '#f39c12';
-    mensajeEstado.textContent = '⏳ Creando entorno del restaurante...';
-
-    try {
-        const { error } = await supabase.functions.invoke('registrar_cliente', {
-            body: { nombreComercial, nombreAdmin, emailAdmin, passwordAdmin }
-        });
-        if (error) throw error;
-
-        mensajeEstado.style.color = '#2ecc71';
-        mensajeEstado.textContent = '✅ ¡Restaurante creado con éxito!';
-        form.reset();
-        cargarNegocios();
-    } catch (error) {
-        mensajeEstado.style.color = '#e74c3c';
-        mensajeEstado.textContent = '❌ Error al crear el restaurante.';
-    }
-});
-
-btnCerrarSesion.addEventListener('click', async () => {
-    await supabase.auth.signOut();
-    window.location.replace('../auth/login.html');
-});
-
-// --- INICIALIZACIÓN DIRECTA DEL PANEL MAESTRO ---
-async function inicializarMaestro() {
-    try {
-        // Le preguntamos directamente a Supabase quién está logueado
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        const identificadorElement = document.getElementById('identificadorUsuario');
-        
-        if (user && identificadorElement) {
-            // Usamos el correo del Súper Admin como su placa de identidad
-            identificadorElement.textContent = `${user.email} (SaaS Admin)`;
-        }
-
-        // Cargamos los negocios sin esperar más
-        cargarNegocios();
-        
-    } catch (error) {
-        console.error("Error al verificar la sesión del maestro:", error);
-        cargarNegocios(); // Cargamos la lista de todos modos
-    }
-}
-
-// Arrancamos inmediatamente
-inicializarMaestro();
