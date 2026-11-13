@@ -342,6 +342,12 @@ async function cobrarYliberarMesa() {
     return;
   }
 
+  // Prevenir cobro en cero
+  if (totalCuentaActual <= 0) {
+    showToast('La cuenta está en ceros, no hay saldo que cobrar.', 'warning');
+    return;
+  }
+
   const modal = document.getElementById('modalPedido');
 
   mostrarConfirmacion({
@@ -355,6 +361,7 @@ async function cobrarYliberarMesa() {
           .from('cuentas')
           .update({
             estado: 'cerrada',
+            total: totalCuentaActual, // <-- Solución al error de guardado en $0.00
             fecha_cierre: new Date().toISOString()
           })
           .eq('id', cuentaActivaId);

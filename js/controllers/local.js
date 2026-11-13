@@ -18,7 +18,12 @@ export async function inicializarPanel() {
   negocioIdActual = usuario.negocio_id;
 
   bindLocalEvents();
+  // Se cargan primero catálogo y empleados
   await Promise.all([cargarEmpleados(), obtenerCatalogoProductos()]);
+
+  // INICIO DEL DASHBOARD
+  configurarFechasPorDefecto();
+  await window.generarReporteVentas();
 }
 
 async function obtenerCatalogoProductos() {
@@ -332,3 +337,145 @@ window.confirmarCambioEstatusEmpleado = function(id, nombre, nuevoEstado) {
     }
   });
 };
+
+// ==========================================
+// MÓDULO DE REPORTES Y VENTAS (DASHBOARD)
+// ==========================================
+
+function configurarFechasPorDefecto() {
+    // Obtenemos la fecha exacta en México
+    const fechaMexico = new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" });
+    const fechaObj = new Date(fechaMexico);
+
+    // Formateamos estrictamente a YYYY-MM-DD para evitar fallos de navegador
+    const año = fechaObj.getFullYear();
+    const mes = String(fechaObj.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaObj.getDate()).padStart(2, '0');
+    const hoyString = `${año}-${mes}-${dia}`;
+    
+    document.getElementById('filtroDesde').value = hoyString;
+    document.getElementById('filtroHasta').value = hoyString;
+}
+
+function obtenerRangoOperativoISO(fechaDesde, fechaHasta) {
+    const [yearD, monthD, dayD] = fechaDesde.split('-').map(Number);
+    const [yearH, monthH, dayH] = fechaHasta.split('-').map(Number);
+
+    // 1. Hora local real (06:00 AM y 05:59 AM del día siguiente)
+    const inicioReal = new Date(yearD, monthD - 1, dayD, 6, 0, 0);
+    const finReal = new Date(yearH, monthH - 1, dayH + 1, 5, 59, 59);
+
+    // 2. Aplicamos la misma compensación que usa la Terminal para que coincida con la BD
+    const inicioCompensado = new Date(inicioReal.getTime() - (inicioReal.getTimezoneOffset() * 60000));
+    const finCompensado = new Date(finReal.getTime() - (finReal.getTimezoneOffset() * 60000));
+
+    return { 
+        inicioISO: inicioCompensado.toISOString(), 
+        finISO: finCompensado.toISOString() 
+    };
+}
+
+window.generarReporteVentas = async function() {
+    const fechaDesde = document.getElementById('filtroDesde').value;
+    const fechaHasta = document.getElementById('filtroHasta').value;
+
+    if(!fechaDesde || !fechaHasta) {
+        showToast("Por favor selecciona un rango de fechas válido.", "warning"); 
+        return;
+    }
+
+    const { inicioISO, finISO } = obtenerRangoOperativoISO(fechaDesde, fechaHasta);
+
+    try {
+        const { data: cuentas, error: errCuentas } = await supabase.from('cuentas')
+            .select('id, total')
+            .eq('negocio_id', negocioIdActual)
+            .eq('estado', 'cerrada')
+            .gte('fecha_cierre', inicioISO)
+            .lte('fecha_cierre', finISO);
+
+        if (errCuentas) throw errCuentas;
+
+        let totalVendido = 0;
+        let idsCuentas = [];
+        
+        if (cuentas && cuentas.length > 0) {
+            // Aseguramos que el total se sume como número, ignorando vacíos o nulos
+            totalVendido = cuentas.reduce((sum, c) => sum + (Number(c.total) || 0), 0);
+            idsCuentas = cuentas.map(c => c.id);
+        }
+
+        document.getElementById('resumenTotal').textContent = `$${totalVendido.toFixed(2)}`;
+        document.getElementById('resumenCuentas').textContent = `${cuentas ? cuentas.length : 0} cuentas cerradas`;
+
+        if (idsCuentas.length === 0) {
+            document.getElementById('resumenFavorito').textContent = 'Sin ventas';
+            document.getElementById('resumenFavoritoCant').textContent = '-';
+            document.getElementById('resumenEstancado').textContent = 'Revisar inventario';
+            document.getElementById('resumenEstancadoCant').textContent = '-';
+            document.getElementById('listaTopProductos').innerHTML = '<li style="color: var(--text-muted); font-size: var(--text-sm); font-style: italic;">No hay datos en este periodo.</li>';
+            return;
+        }
+
+        const { data: comandas, error: errComandas } = await supabase.from('comandas')
+            .select('producto_id, cantidad')
+            .in('cuenta_id', idsCuentas);
+
+        if (errComandas) throw errComandas;
+
+        const cantidadesPorProducto = {};
+        if (comandas) {
+            comandas.forEach(c => {
+                if (!cantidadesPorProducto[c.producto_id]) cantidadesPorProducto[c.producto_id] = 0;
+                cantidadesPorProducto[c.producto_id] += c.cantidad;
+            });
+        }
+
+        let ranking = [];
+        listaProductosGlobal.forEach(prod => {
+            ranking.push({
+                nombre: prod.nombre,
+                vendidos: cantidadesPorProducto[prod.id] || 0
+            });
+        });
+
+        ranking.sort((a, b) => b.vendidos - a.vendidos);
+
+        const favorito = ranking[0];
+        document.getElementById('resumenFavorito').textContent = favorito.nombre;
+        document.getElementById('resumenFavoritoCant').textContent = `${favorito.vendidos} uds`;
+
+        const estancado = ranking[ranking.length - 1];
+        document.getElementById('resumenEstancado').textContent = estancado.nombre;
+        document.getElementById('resumenEstancadoCant').textContent = estancado.vendidos === 0 ? '¡0 uds vendidas!' : `${estancado.vendidos} uds`;
+
+        const listaTop = document.getElementById('listaTopProductos');
+        listaTop.innerHTML = '';
+        
+        const top5 = ranking.slice(0, 5);
+        top5.forEach((item, index) => {
+            const medalla = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+            listaTop.innerHTML += `
+                <li style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); padding: 10px 15px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                    <span style="color: var(--text-primary); font-size: var(--text-sm);">
+                        <span style="margin-right: 8px;">${medalla}</span> 
+                        <strong>${item.nombre}</strong>
+                    </span>
+                    <span style="font-weight: 700; color: var(--color-success); font-size: var(--text-sm);">${item.vendidos} uds</span>
+                </li>
+            `;
+        });
+
+    } catch (error) {
+        console.error("Falla en reporte:", error);
+        showToast("Hubo un error al procesar el reporte de ventas.", "danger");
+    }
+};
+
+// Conectamos el botón de filtrar asegurando que el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    const btnFiltrar = document.getElementById('btnFiltrarVentas');
+    if(btnFiltrar) {
+        btnFiltrar.addEventListener('click', window.generarReporteVentas);
+    }
+});
